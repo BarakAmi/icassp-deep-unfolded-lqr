@@ -1,0 +1,31 @@
+{
+ "phase": "online",
+ "contender": "riccati_unconstrained",
+ "seed": 0,
+ "model_id": "f83bfd2115ce332a",
+ "study": "studies/icassp/fig1_depth.toml",
+ "tier": "publication_b16k",
+ "axis_filter": {
+  "contenders.*.config.num_iterations": 3
+ },
+ "setup_s": 0.011818560000392608,
+ "per_step_s": 3.0790106393396854e-06,
+ "per_step_p10_s": 3.049994120374322e-06,
+ "per_step_p90_s": 3.1460076570510864e-06,
+ "per_step_calls": 2000,
+ "per_step_batch_size": 1,
+ "batched_wall_s": [
+  0.05624214600538835,
+  0.038577190003707074,
+  0.03074677800759673,
+  0.027785390004282817,
+  0.022955288994126022,
+  0.024987501004943624,
+  0.025865944000543095,
+  0.024943427997641265
+ ],
+ "batched_batch_size": 4096,
+ "baseline_rss_bytes": 707870720,
+ "rss_after_load_bytes": 717570048,
+ "peak_rss_bytes": 1101492224
+}

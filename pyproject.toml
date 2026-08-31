@@ -1,0 +1,220 @@
+[project]
+name = "model-based-learning-for-stochastic-control"
+version = "0.1.0"
+description = "Model-based learning for stochastic control: simulation, analysis and benchmarking of learned and analytic controllers."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Barak Ami", email = "barakamihood@gmail.com" }]
+keywords = ["stochastic-control", "deep-unfolding", "LQR", "model-based-learning"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+# Upper bound deliberate: 3.13 is the only version this project is
+# tested on, and an open bound let CI silently resolve 3.14, where a
+# reworded SyntaxWarning message defeated the filter below. Raise it
+# when a newer interpreter has actually been run green.
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "asttokens>=3.0.1",
+    "beartype>=0.22.9",
+    "comm>=0.2.3",
+    "cvxpy>=1.8.2",
+    "cvxpylayers>=1.2.0",
+    "ipykernel>=7.3.0",
+    "jaxtyping>=0.3.11",
+    "matplotlib>=3.10.8",
+    "moreau[cuda13]>=0.3.3",
+    "numpy>=2.4.3",
+    "pandas>=3.0.2",
+    "pyarrow>=13.0.0",
+    "pydantic>=2.13.4",
+    "safetensors>=0.8.0",
+    "streamlit>=1.58.0",
+    "torch>=2.12.1",
+]
+
+[project.urls]
+Repository = "https://github.com/BarakAmi/PhD"
+
+[project.scripts]
+# The store's user interface (decision D8, Annex 02 §5).
+mbl = "mbl.cli.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# Only the modern tree is packaged. src/lqr/ is frozen legacy (D11),
+# excluded here exactly as it is from ruff and mypy.
+packages = ["src/mbl"]
+
+[tool.uv]
+# nvidia-cublas-cu13 is a deprecated tombstone package (only releases
+# 0.0.0a0/0.0.1 ever published on PyPI, both unbuildable stubs whose build
+# backend immediately errors "THIS PROJECT IS DEPRECATED, use nvidia-cublas
+# instead"). It surfaces transitively via moreau[cuda13] -> nvidia-cudss-cu13
+# -> cuda-toolkit[cublas], whose own metadata still lists the old name on
+# some resolutions. The real, current package (unsuffixed `nvidia-cublas`)
+# is already installed and pinned by torch's own cu130 wheel requirements;
+# this override just stops the resolver from also chasing the dead stub.
+override-dependencies = ["nvidia-cublas-cu13; sys_platform == 'never'"]
+
+[tool.pytest.ini_options]
+# Zero-warning policy (Stage S6): any warning a test does not explicitly
+# assert (pytest.warns) or that is not a known third-party issue listed below
+# fails the suite, so new warnings can never accumulate silently again.
+filterwarnings = [
+    "error",
+    # cvxpylayers ships an `__array__` without NumPy 2.0's `copy` kwarg; the
+    # deprecation is theirs to fix (diffcp_if.py), not actionable here.
+    "ignore:__array__ implementation doesn't accept a copy keyword:DeprecationWarning",
+    # torch notes (once) that sparse invariant checks default to off when
+    # cvxpylayers builds its sparse CSR tensors; opting in/out is a
+    # cvxpylayers-internal decision.
+    "ignore:Sparse invariant checks are implicitly disabled:UserWarning",
+    # diffcp's docstrings contain raw `\i` (cone_program.py:300, utils.py:137),
+    # which Python flags at COMPILE time -- so the warning fires only on the
+    # very first import into a fresh environment, before the .pyc is cached,
+    # and never again afterwards. Under `error` that first import raises,
+    # cvxpy catches it and reports "The solver DIFFCP is not installed", and
+    # 65 tests fail. On a developer machine with a warm __pycache__ they all
+    # pass, so this is invisible locally and reproducible only on a clean
+    # checkout -- which is exactly what CI is. Our own code is covered by
+    # ruff's W605 instead (see [tool.ruff.lint]), so this ignore cannot mask
+    # the same mistake here.
+    # Leading `.*` is load-bearing: pytest anchors this pattern at the start
+    # of the message, and the wording differs by interpreter --
+    # 3.13 says `invalid escape sequence '\i'` while 3.14 says
+    # `"\i" is an invalid escape sequence...`. Anchoring to either one
+    # silently stops matching on the other, which is exactly how this
+    # failure returned on CI after being fixed locally.
+    "ignore:.*invalid escape sequence:SyntaxWarning",
+]
+
+[tool.ruff]
+# The frozen legacy baseline (src/lqr/ and its exclusive test modules /
+# notebook) is grandfathered verbatim as a fallback -- never linted, never
+# formatted, scheduled for deletion after the modern tree fully replaces it.
+extend-exclude = [
+    "src/lqr",
+    "src/mbl/applications/covert_control_notebook.ipynb",
+    # Notebooks are narrative documents, not library code. Formatting their
+    # cells churns diffs for no reader benefit, and their import style is
+    # legitimately different -- a cell may import a name the reader is meant
+    # to see even where a later cell is what uses it, which reads to F401 as
+    # dead. Notebook hygiene is enforced instead by the outputs-stripped
+    # check (D9), which is the property that actually matters.
+    "notebooks/",
+]
+
+[tool.ruff.lint]
+# jaxtyping shape annotations (e.g. Float[np.ndarray, "batch n"]) are string
+# axis specs, not Python forward references; per jaxtyping's documentation,
+# F722 must be disabled when using them (Stage S1, T1.5.a).
+ignore = ["F722"]
+# REFACTOR_PLAN v3 §7.7: the signature-count budget. Functions with more than
+# six parameters (the 12-20-parameter God-module signatures of M3) are
+# mechanically prevented from returning; spec/bundle dataclasses absorb the
+# rest. Test code is exempt per the plan.
+extend-select = [
+    "PLR0913",
+    # Invalid escape sequences. Not in ruff's default set, and the zero-warning
+    # policy below has to ignore SyntaxWarning globally because a third-party
+    # package emits it at compile time (see the diffcp note). Selecting W605
+    # keeps that ignore from masking the same mistake in our own code: the
+    # linter owns this tree, the warning filter owns site-packages.
+    "W605",
+]
+
+[tool.ruff.lint.pylint]
+max-args = 6
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["PLR0913"]
+
+[tool.mypy]
+# Stage S6 strict gate (REFACTOR_PLAN v3, T1.5.d / §7.6): the whole modern
+# tree type-checks under a strict-leaning configuration -- untyped defs are
+# forbidden, Any returns warned, redundant ignores flagged. The frozen legacy
+# baseline (src/lqr + its exclusive test modules) is excluded, exactly as it
+# is from ruff.
+python_version = "3.13"
+files = ["src/mbl", "tests"]
+# `mbl` is a real installed package rooted at src/, so mypy resolves module
+# names from there rather than from a cwd-relative namespace-package guess.
+explicit_package_bases = true
+# `tools` is here so a test may import a committed tool (the mutation
+# harness) without mypy reporting it as a missing library. Only `files` above
+# decides what is CHECKED; this decides what can be resolved.
+mypy_path = "src:tools"
+exclude = [
+    "^src/lqr/",  # frozen legacy (D11)
+    "^tests/costs\\.py$",
+    "^tests/deep_unfolding_controller\\.py$",
+    "^tests/grad_base_controller\\.py$",
+    "^tests/lqr_problem\\.py$",
+    "^tests/tests_utils\\.py$",
+]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_return_any = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+# Third-party libraries that ship no (complete) type stubs.
+module = [
+    "cvxpy.*",
+    "cvxpylayers.*",
+    "diffcp.*",
+    "matplotlib.*",
+    "mpl_toolkits.*",
+    "moreau.*",
+    "pandas.*",
+    "scipy.*",
+    "streamlit.*",
+    "IPython.*",
+    "safetensors.*",
+    "psutil.*",
+    "mamba_ssm.*",
+]
+ignore_missing_imports = true
+follow_untyped_imports = true
+
+[[tool.mypy.overrides]]
+# Test code runs at a documented lighter tier (the plan's strict gate binds
+# `mbl`): bodies are still type-checked (`check_untyped_defs` stays on from
+# the global config), but fixtures/helpers exercising deliberately-wrong
+# inputs and monkeypatched seams are not required to carry full annotations,
+# and Any-returns from test doubles are routine.
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+warn_return_any = false
+# Tests deliberately construct protocol-violating doubles (e.g. a
+# TrainingStrategy stub without `trains_parameters`, to exercise the getattr
+# default), pass string shorthand at typed ingresses, and call
+# tensor-specific members on the dual-backend `np.ndarray | Tensor` unions
+# they know resolve to tensors -- all intentional looseness, not defects.
+disable_error_code = ["arg-type", "union-attr", "attr-defined"]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.3.0",
+    "mypy>=2.3.0",
+    "nbclient>=0.11.0",
+    "nbconvert>=7.17.1",
+    "pytest>=9.1.1",
+    "ruff>=0.15.20",
+    "safetensors>=0.8.0",
+]

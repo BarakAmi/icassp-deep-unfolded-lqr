@@ -1,0 +1,186 @@
+# ICASSP -- was the GRU trained properly? The learning rate, probed.
+#
+# THE QUESTION, and it is the author's: Figure 1's GRU trains at Adam
+# lr = 0.01 while COCP trains at 0.1. Neither was chosen for the GRU -- 0.01 is
+# the rate the unfolded families use and the study's own default, so the
+# recurrent baseline inherited it. The paper claims to beat that baseline by
+# 0.26 %, and a reviewer is entitled to ask whether the margin is a property of
+# the method or of a hyper-parameter nobody tuned for the rival.
+#
+# This document answers it the same way the width was answered: by measuring,
+# at the budget the result is quoted at, and by reporting the whole sweep
+# rather than the winner.
+#
+# THE RATES: 0.001, 0.003, 0.01, 0.03, 0.1 -- half a decade apart on a log
+# axis, spanning the declared 0.01 and reaching COCP's own 0.1 at the top. Five
+# points, which is the width ablation's shape and its cost.
+#
+# IT MUST RUN AT `publication` AND THE REASON IS MEASURED. `standard` resolves
+# to 50 epochs and ONE seed, and the width ablation showed exactly what that
+# hides: below 64 units the GRU's fit is BIMODAL, and a single seed reports
+# whichever mode it landed in. A learning rate that fails on two seeds in five
+# would read as a good rate at one seed. The five-seed spread is the quantity
+# this probe is actually about.
+#
+# AND ITS NUMBERS MAY ONLY BE COMPARED WITH FIGURE 1'S AT THE SAME TIER. The
+# tiers differ in the EVALUATION batch as well as the training effort, and that
+# is worth 0.023 on a contender that cannot change (truncated Riccati reads
+# 9.127150 at `standard` and 9.150350 at `publication`) -- several times the
+# 0.26 % margin under discussion.
+#
+# THIS IS ITS OWN DOCUMENT, for the reason the width ablation is: `cost_vs_axis`
+# groups on ONE declared axis, and a second swept axis is reduced as though it
+# were a training replicate, which fabricates the error bar rather than merely
+# blurring the mean.
+
+id = "icassp/gru_lr_probe"
+
+# D19: the frozen plant, committed beside the study, the same one Figure 1 and
+# the width ablation use. Comparing this probe with Figure 1's GRU requires the
+# plant to be identical, not merely similar.
+[problem]
+path = "icassp_n4m2_N100_u0p1_s0.npz"
+
+[compute]
+backend = "torch"
+device = "cpu"
+precision = "float64"
+
+[training]
+seeds = [0]
+
+[training.data]
+kind = "gaussian"
+seed = 0
+process_noise_std = 0.5
+initial_state_std = 0.5
+
+[training.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.01
+epochs = 100
+
+[training.batch]
+effective_size = 8192
+
+[evaluation]
+metrics = ["expected_cost"]
+
+[evaluation.protocol]
+_build = "protocol"
+n_batches = 8
+
+[evaluation.protocol.batch_spec]
+_build = "gaussian"
+batch_size = 4096
+seed = 0
+process_noise_std = 0.5
+initial_state_std = 0.5
+
+# -- the contenders --------------------------------------------------------
+
+# The GRU at the width the ablation chose, so that the only thing this document
+# varies is the rate. `label` stays "neural": renaming it is not
+# presentation-neutral, since an unregistered label falls through to a spare
+# palette slot.
+#
+# `learning_rate` is declared here and REPLACED at every point by the sweep.
+# The value written is the axis's first, so a document whose declared rate
+# names one it no longer tests cannot mislead on sight.
+[[contenders]]
+label = "neural"
+display = 'GRU'
+family = "neural"
+
+[contenders.config]
+hidden_dim = 64
+model_type = "GRU"
+
+[contenders.config.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.001
+epochs = 100
+
+# The number the GRU has to beat to be worth its parameters, at every rate.
+# Rate-invariant, so it draws as one level and gives the sweep something to be
+# read against -- and it is the contender the width ablation found the small
+# widths failing to beat at all.
+[[contenders]]
+label = "truncated_riccati"
+display = 'Truncated-Riccati'
+family = "truncated_riccati"
+role = "baseline"
+
+[contenders.config]
+horizon = 100
+
+# The unconstrained floor: not a competitor, and `role = "reference"` gives it
+# §B.3.1's reserved encoding rather than a palette slot.
+[[contenders]]
+label = "riccati_unconstrained"
+display = 'Riccati (unconstrained)'
+family = "riccati"
+role = "reference"
+
+[contenders.config]
+horizon = 100
+
+# -- what varies -----------------------------------------------------------
+
+# `applies_to` is load-bearing: without it the two rate-invariant contenders
+# would each be emitted once per rate, for five identical results apiece.
+[[sweep]]
+path = "contenders.*.config.plan.optimizer.learning_rate"
+values = [0.001, 0.003, 0.01, 0.03, 0.1]
+applies_to = ["neural"]
+
+# -- what must hold --------------------------------------------------------
+
+[[gates]]
+kind = "constraint_binds"
+min_fraction = 0.01
+
+# -- what is computed from the results -------------------------------------
+
+[[analyses]]
+id = "cost_by_learning_rate"
+kind = "cost_vs_axis"
+axis = "contenders.*.config.plan.optimizer.learning_rate"
+aggregate = "mean"
+
+[[figures]]
+id = "gru_lr_probe_cost"
+kind = "axis_scaling"
+source = "cost_by_learning_rate"
+xlabel = "Adam learning rate"
+ylabel = "expected cost"
+title = "The recurrent baseline against its learning rate"
+xscale = "log"
+
+[figures.table]
+columns = [
+    "contender",
+    "axis_value",
+    "aggregate",
+    "across_seed_spread",
+    "n_seeds",
+    "per_seed_aggregate",
+]
+caption = "Mean cost by Adam learning rate, GRU with 64 hidden units."
+
+[figures.table.precision]
+default = 4
+n_seeds = 0
+
+# -- per-study tier overlay ------------------------------------------------
+
+# THE PIN. `[publication]` writes `epochs = 200` while this campaign's declared
+# instance is 100, and an unpinned run costs twice what it should AND produces
+# a GRU that cannot be compared with Figure 1's.
+[tier_overrides.publication]
+"contenders.*.config.plan.epochs" = 100
+
+[tier_overrides.smoke]
+"contenders.*.config.plan.epochs" = 3

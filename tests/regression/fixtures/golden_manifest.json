@@ -1,0 +1,719 @@
+{
+  "captured_at_utc": "2026-07-14T01:01:28.852268+00:00",
+  "environment": {
+    "numpy": "2.4.3",
+    "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "python": "3.13.12",
+    "torch": "2.12.1+cu130"
+  },
+  "known_defect_exceptions": {
+    "C1": "models/base.py Controller.get_signature protocol body embeds problem.* despite its own docstring; sentinel in test_known_defect_sentinels.py, fixed in S2 (T2.a).",
+    "C2": "applications/rollout.py RolloutModel._differentiable_cost ignores include_terminal_cost/is_time_averaged; the frozen J_opt coincides with the declared (False, True) default flags and must survive the S2 kernel fix unchanged; divergence under non-default flags is frozen as a sentinel, fixed in S2 (T2.d).",
+    "C3": "core/utils/validation.py validate_positive_(semi_)definite does not forward atol to the eigenvalue check; sentinel frozen, fixed in S1 (T1.d).",
+    "C4": "both apps' build_engine logs unfolded_learning_rate for every model family; sentinel frozen, fixed in S3 (T3.b)."
+  },
+  "purpose": "Golden-master regression baselines frozen on the untouched pre-refactor tree (REFACTOR_PLAN v3 \u00a77.1). Regenerate only via `uv run python -m tests.regression.capture_golden --force`, and only as a deliberate, reviewed re-baselining.",
+  "scenarios": {
+    "signal_space_gd": {
+      "arrays": {
+        "A": {
+          "dtype": "float64",
+          "shape": [
+            4,
+            4
+          ]
+        },
+        "B": {
+          "dtype": "float64",
+          "shape": [
+            4,
+            2
+          ]
+        },
+        "K_arr": {
+          "dtype": "float64",
+          "shape": [
+            100,
+            2,
+            4
+          ]
+        },
+        "P_arr": {
+          "dtype": "float64",
+          "shape": [
+            101,
+            4,
+            4
+          ]
+        },
+        "U_opt_head": {
+          "dtype": "float64",
+          "shape": [
+            4,
+            100,
+            2
+          ]
+        },
+        "U_opt_mean": {
+          "dtype": "float64",
+          "shape": [
+            100,
+            2
+          ]
+        },
+        "U_opt_meansq": {
+          "dtype": "float64",
+          "shape": [
+            100,
+            2
+          ]
+        },
+        "cold_gauss_seidel__J_history": {
+          "dtype": "float64",
+          "shape": [
+            101
+          ]
+        },
+        "cold_gauss_seidel__U_final_head": {
+          "dtype": "float32",
+          "shape": [
+            4,
+            100,
+            2
+          ]
+        },
+        "cold_gauss_seidel__U_final_mean": {
+          "dtype": "float32",
+          "shape": [
+            100,
+            2
+          ]
+        },
+        "cold_gauss_seidel__U_final_meansq": {
+          "dtype": "float32",
+          "shape": [
+            100,
+            2
+          ]
+        },
+        "cold_gauss_seidel__U_history_member0": {
+          "dtype": "float32",
+          "shape": [
+            101,
+            100,
+            2
+          ]
+        },
+        "cold_gauss_seidel__X_final_head": {
+          "dtype": "float32",
+          "shape": [
+            4,
+            101,
+            4
+          ]
+        },
+        "cold_gauss_seidel__X_final_mean": {
+          "dtype": "float32",
+          "shape": [
+            101,
+            4
+          ]
+        },
+        "cold_gauss_seidel__X_final_meansq": {
+          "dtype": "float32",
+          "shape": [
+            101,
+            4
+          ]
+        },
+        "cold_jacobi__J_history": {
+          "dtype": "float64",
+          "shape": [
+            101
+          ]
+        },
+        "cold_jacobi__U_final_head": {
+          "dtype": "float32",
+          "shape": [
+            4,
+            100,
+            2
+          ]
+        },
+        "cold_jacobi__U_final_mean": {
+          "dtype": "float32",
+          "shape": [
+            100,
+            2
+          ]
+        },
+        "cold_jacobi__U_final_meansq": {
+          "dtype": "float32",
+          "shape": [
+            100,
+            2
+          ]
+        },
+        "cold_jacobi__U_history_member0": {
+          "dtype": "float32",
+          "shape": [
+            101,
+            100,
+            2
+          ]
+        },
+        "cold_jacobi__X_final_head": {
+          "dtype": "float32",
+          "shape": [
+            4,
+            101,
+            4
+          ]
+        },
+        "cold_jacobi__X_final_mean": {
+          "dtype": "float32",
+          "shape": [
+            101,
+            4
+          ]
+        },
+        "cold_jacobi__X_final_meansq": {
+          "dtype": "float32",
+          "shape": [
+            101,
+            4
+          ]
+        },
+        "random_jacobi__J_history": {
+          "dtype": "float64",
+          "shape": [
+            101
+          ]
+        },
+        "random_jacobi__U_final_head": {
+          "dtype": "float32",
+          "shape": [
+            4,
+            100,
+            2
+          ]
+        },
+        "random_jacobi__U_final_mean": {
+          "dtype": "float32",
+          "shape": [
+            100,
+            2
+          ]
+        },
+        "random_jacobi__U_final_meansq": {
+          "dtype": "float32",
+          "shape": [
+            100,
+            2
+          ]
+        },
+        "random_jacobi__U_history_member0": {
+          "dtype": "float32",
+          "shape": [
+            101,
+            100,
+            2
+          ]
+        },
+        "random_jacobi__X_final_head": {
+          "dtype": "float32",
+          "shape": [
+            4,
+            101,
+            4
+          ]
+        },
+        "random_jacobi__X_final_mean": {
+          "dtype": "float32",
+          "shape": [
+            101,
+            4
+          ]
+        },
+        "random_jacobi__X_final_meansq": {
+          "dtype": "float32",
+          "shape": [
+            101,
+            4
+          ]
+        },
+        "warm_jacobi__J_history": {
+          "dtype": "float64",
+          "shape": [
+            101
+          ]
+        },
+        "warm_jacobi__U_final_head": {
+          "dtype": "float32",
+          "shape": [
+            4,
+            100,
+            2
+          ]
+        },
+        "warm_jacobi__U_final_mean": {
+          "dtype": "float32",
+          "shape": [
+            100,
+            2
+          ]
+        },
+        "warm_jacobi__U_final_meansq": {
+          "dtype": "float32",
+          "shape": [
+            100,
+            2
+          ]
+        },
+        "warm_jacobi__U_history_member0": {
+          "dtype": "float32",
+          "shape": [
+            101,
+            100,
+            2
+          ]
+        },
+        "warm_jacobi__X_final_head": {
+          "dtype": "float32",
+          "shape": [
+            4,
+            101,
+            4
+          ]
+        },
+        "warm_jacobi__X_final_mean": {
+          "dtype": "float32",
+          "shape": [
+            101,
+            4
+          ]
+        },
+        "warm_jacobi__X_final_meansq": {
+          "dtype": "float32",
+          "shape": [
+            101,
+            4
+          ]
+        },
+        "x0_batch_head": {
+          "dtype": "float64",
+          "shape": [
+            4,
+            4
+          ]
+        }
+      },
+      "npz": "signal_space_gd_golden.npz",
+      "params": {
+        "alpha": 0.02,
+        "batch_size": 1024,
+        "control_dim": 2,
+        "dtype": "float32",
+        "horizon": 100,
+        "initial_state_std": 0.25,
+        "max_iters": 100,
+        "process_noise_std": 0.25,
+        "seed": 0,
+        "state_dim": 4
+      },
+      "safetensors": "signal_space_gd_golden.safetensors",
+      "scalars": {
+        "J_opt": 0.4654662790093138,
+        "U_opt_full_hash": "sha256:8f19944e2c0a85263a719d48212d6961d2e02381b62bbea97c66800f25c8cbc3",
+        "X_opt_full_hash": "sha256:ab49a0562a8fb69bb04965eec2b5317f9983b5bedeade095e55138082f7ed4a0",
+        "cold_gauss_seidel__J_final": 0.46546608209609985,
+        "cold_gauss_seidel__U_final_full_hash": "sha256:a98c056db01a08b857b38b354ef22a66c01718ef5dd01f411eb3c5c08e1fb3b5",
+        "cold_gauss_seidel__U_history_full_hash": "sha256:cb76a87a1b4d54a26f0c6e041695a674915b620610b63a207ecbe627c346b190",
+        "cold_gauss_seidel__X_final_full_hash": "sha256:d03494372c22cdf0ed9bf7d0a34a317009b04304137b3ac629937b3f7dbb6642",
+        "cold_gauss_seidel__converged": false,
+        "cold_gauss_seidel__iterations_run": 100,
+        "cold_gauss_seidel__signature_digest": "a7e975eea663a3ad",
+        "cold_jacobi__J_final": 0.46546608209609985,
+        "cold_jacobi__U_final_full_hash": "sha256:35d5d8745954b17af9b4715d931a953f8e3121c840660a25d92814a13d40e395",
+        "cold_jacobi__U_history_full_hash": "sha256:f7f8c16f5a4809cf95e4f8bd438b8c6ab992dd3801202837ac86bc3491be16fb",
+        "cold_jacobi__X_final_full_hash": "sha256:890960a446d383742ec3f414b0480a99b367ed39fd2868897f862ef8abda6bfb",
+        "cold_jacobi__converged": false,
+        "cold_jacobi__iterations_run": 100,
+        "cold_jacobi__signature_digest": "02a8db499191c71b",
+        "random_jacobi__J_final": 0.46546614170074463,
+        "random_jacobi__U_final_full_hash": "sha256:f545fe5fb2475b5ed8cf6bc57de42ef36090aa522b0954669f25566d98392a0e",
+        "random_jacobi__U_history_full_hash": "sha256:6a17f00c34f9d10e6b3d7c99b6a28eab02b5a67615cb4fca639a3aeebf824a1a",
+        "random_jacobi__X_final_full_hash": "sha256:851d215f5bf0b764191c84d5d41a143546f5feeeb8c0327d73337b345cefa302",
+        "random_jacobi__converged": false,
+        "random_jacobi__iterations_run": 100,
+        "random_jacobi__signature_digest": "1caff197d790cbd3",
+        "w_full_hash": "sha256:19f4418d067a01014e2879ca36d32116c8d2bfe6649ac66365475dad255a97b9",
+        "warm_jacobi__J_final": 0.46546608209609985,
+        "warm_jacobi__U_final_full_hash": "sha256:35d5d8745954b17af9b4715d931a953f8e3121c840660a25d92814a13d40e395",
+        "warm_jacobi__U_history_full_hash": "sha256:f7f8c16f5a4809cf95e4f8bd438b8c6ab992dd3801202837ac86bc3491be16fb",
+        "warm_jacobi__X_final_full_hash": "sha256:890960a446d383742ec3f414b0480a99b367ed39fd2868897f862ef8abda6bfb",
+        "warm_jacobi__converged": false,
+        "warm_jacobi__iterations_run": 100,
+        "warm_jacobi__signature_digest": "9076c1929bcc0521",
+        "x0_full_hash": "sha256:b27fc132a1390f38b258d3acc3dabd8bb7bd59c067876be6fbe81843ef1ccece"
+      },
+      "torch_tensors": {
+        "C_stack": {
+          "dtype": "torch.float32",
+          "shape": [
+            100,
+            2,
+            4
+          ]
+        },
+        "M_stack": {
+          "dtype": "torch.float32",
+          "shape": [
+            100,
+            2,
+            2
+          ]
+        },
+        "U_opt_head": {
+          "dtype": "torch.float64",
+          "shape": [
+            4,
+            100,
+            2
+          ]
+        },
+        "U_opt_mean": {
+          "dtype": "torch.float64",
+          "shape": [
+            100,
+            2
+          ]
+        },
+        "U_opt_meansq": {
+          "dtype": "torch.float64",
+          "shape": [
+            100,
+            2
+          ]
+        },
+        "X_opt_head": {
+          "dtype": "torch.float64",
+          "shape": [
+            4,
+            101,
+            4
+          ]
+        },
+        "X_opt_mean": {
+          "dtype": "torch.float64",
+          "shape": [
+            101,
+            4
+          ]
+        },
+        "X_opt_meansq": {
+          "dtype": "torch.float64",
+          "shape": [
+            101,
+            4
+          ]
+        }
+      },
+      "variants": [
+        "cold_jacobi",
+        "random_jacobi",
+        "warm_jacobi",
+        "cold_gauss_seidel"
+      ]
+    },
+    "signal_space_gd_3d": {
+      "arrays": {
+        "A": {
+          "dtype": "float64",
+          "shape": [
+            3,
+            3
+          ]
+        },
+        "B": {
+          "dtype": "float64",
+          "shape": [
+            3,
+            3
+          ]
+        },
+        "J_history": {
+          "dtype": "float64",
+          "shape": [
+            101
+          ]
+        },
+        "K_arr": {
+          "dtype": "float64",
+          "shape": [
+            18,
+            3,
+            3
+          ]
+        },
+        "P_arr": {
+          "dtype": "float64",
+          "shape": [
+            19,
+            3,
+            3
+          ]
+        },
+        "U_final": {
+          "dtype": "float32",
+          "shape": [
+            64,
+            18,
+            3
+          ]
+        },
+        "U_history_member0": {
+          "dtype": "float32",
+          "shape": [
+            101,
+            18,
+            3
+          ]
+        },
+        "X_final": {
+          "dtype": "float32",
+          "shape": [
+            64,
+            19,
+            3
+          ]
+        },
+        "w_batch": {
+          "dtype": "float64",
+          "shape": [
+            64,
+            18,
+            3
+          ]
+        },
+        "x0_batch": {
+          "dtype": "float64",
+          "shape": [
+            64,
+            3
+          ]
+        }
+      },
+      "npz": "signal_space_gd_3d_golden.npz",
+      "params": {
+        "alpha": 0.02,
+        "batch_size": 64,
+        "control_dim": 3,
+        "dtype": "float32",
+        "horizon": 18,
+        "initial_state_std": 0.25,
+        "max_iters": 100,
+        "process_noise_std": 0.25,
+        "seed": 0,
+        "state_dim": 3
+      },
+      "scalars": {
+        "J_final": 0.3043663501739502,
+        "J_opt": 0.3043907319218747,
+        "U_history_full_hash": "sha256:37144572601d58436da388865ba265dbc88279c28c79233a807944d37e1ad1d3",
+        "converged": false,
+        "iterations_run": 100,
+        "signature_digest": "6611dae234acae2e"
+      }
+    },
+    "standard_lqr": {
+      "arrays": {
+        "A": {
+          "dtype": "float64",
+          "shape": [
+            4,
+            4
+          ]
+        },
+        "B": {
+          "dtype": "float64",
+          "shape": [
+            4,
+            2
+          ]
+        },
+        "K_arr": {
+          "dtype": "float64",
+          "shape": [
+            100,
+            2,
+            4
+          ]
+        },
+        "P_arr": {
+          "dtype": "float64",
+          "shape": [
+            101,
+            4,
+            4
+          ]
+        },
+        "U_head": {
+          "dtype": "float64",
+          "shape": [
+            4,
+            100,
+            2
+          ]
+        },
+        "U_mean": {
+          "dtype": "float64",
+          "shape": [
+            100,
+            2
+          ]
+        },
+        "U_meansq": {
+          "dtype": "float64",
+          "shape": [
+            100,
+            2
+          ]
+        },
+        "X_head": {
+          "dtype": "float64",
+          "shape": [
+            4,
+            101,
+            4
+          ]
+        },
+        "X_mean": {
+          "dtype": "float64",
+          "shape": [
+            101,
+            4
+          ]
+        },
+        "X_meansq": {
+          "dtype": "float64",
+          "shape": [
+            101,
+            4
+          ]
+        },
+        "empirical_cost__no_terminal_avg": {
+          "dtype": "float64",
+          "shape": [
+            100
+          ]
+        },
+        "empirical_cost__no_terminal_raw": {
+          "dtype": "float64",
+          "shape": [
+            100
+          ]
+        },
+        "empirical_cost__terminal_avg": {
+          "dtype": "float64",
+          "shape": [
+            100
+          ]
+        },
+        "empirical_cost__terminal_raw": {
+          "dtype": "float64",
+          "shape": [
+            100
+          ]
+        },
+        "theoretical_cost__no_terminal_avg": {
+          "dtype": "float64",
+          "shape": [
+            100
+          ]
+        },
+        "theoretical_cost__no_terminal_raw": {
+          "dtype": "float64",
+          "shape": [
+            100
+          ]
+        },
+        "theoretical_cost__terminal_avg": {
+          "dtype": "float64",
+          "shape": [
+            100
+          ]
+        },
+        "theoretical_cost__terminal_raw": {
+          "dtype": "float64",
+          "shape": [
+            100
+          ]
+        },
+        "w_head": {
+          "dtype": "float64",
+          "shape": [
+            4,
+            100,
+            4
+          ]
+        },
+        "w_mean": {
+          "dtype": "float64",
+          "shape": [
+            100,
+            4
+          ]
+        },
+        "w_meansq": {
+          "dtype": "float64",
+          "shape": [
+            100,
+            4
+          ]
+        },
+        "x0_head": {
+          "dtype": "float64",
+          "shape": [
+            4,
+            4
+          ]
+        },
+        "x0_mean": {
+          "dtype": "float64",
+          "shape": [
+            4
+          ]
+        },
+        "x0_meansq": {
+          "dtype": "float64",
+          "shape": [
+            4
+          ]
+        }
+      },
+      "npz": "standard_lqr_golden.npz",
+      "params": {
+        "batch_size": 32768,
+        "control_dim": 2,
+        "horizon": 100,
+        "include_terminal_cost": true,
+        "initial_state_variance": 0.25,
+        "noise_variance": 0.25,
+        "seed": 0,
+        "state_dim": 4
+      },
+      "scalars": {
+        "J_final__no_terminal_avg": 1.8611187509874585,
+        "J_final__terminal_avg": 1.8777934110637864,
+        "U_full_hash": "sha256:2e6a60e2d717e84621e4afbb9fbdf17dc45a5f3628a0bfcce8cc8bfb5bf7496b",
+        "X_full_hash": "sha256:a3e84f6735b4e2d7d6b18f7aab3d10433a73993eeeef2efc682259c32b854b03",
+        "controller_signature_digest": "c6ee9d4cdb7ed9d2",
+        "run_signature_digest": "28c214491428bd1e",
+        "w_full_hash": "sha256:894921b540ddac9cad0d33267566d9f1099b961d5caddb96ec2fbb9e00d7e16d",
+        "x0_full_hash": "sha256:964c773f67f1c90d1c5e93ce1edfa1f629f4abd8b8da574ece15ca1be395bc65"
+      }
+    }
+  },
+  "stage": "S0"
+}

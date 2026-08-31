@@ -1,0 +1,35 @@
+# Local gates mirroring .github/workflows/ci.yml, so a violation is caught
+# before it reaches a pull request. Install once with:
+#     uvx pre-commit install
+#
+# Deliberately excludes mypy and pytest: both need the full 5.6 GB
+# environment and take minutes, which is a CI job's work, not a commit's.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.20
+    hooks:
+      - id: ruff-format
+      - id: ruff
+        args: [--fix]
+
+  # D9: git tracks output-free notebooks; the executed copy is a build
+  # artifact. This strips outputs in place rather than rejecting the commit,
+  # because the working copy legitimately has them after a run.
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.8.1
+    hooks:
+      - id: nbstripout
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # The 16 GB repository was built one large blob at a time. 1 MB is
+      # far above any legitimate source file here and far below a figure
+      # bundle or a checkpoint.
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace

@@ -1,0 +1,258 @@
+# ICASSP -- was the analytic baseline handicapped by a conservative step? The
+# step ablation at n = 100, straddling the classical stability limit.
+#
+# THE AUTHOR'S QUESTION (2026-08-12), and it is a fairness question of exactly
+# the kind this campaign has answered one family at a time: Standard-PGD is
+# still descending at J = 10 on the large plant (114.68 -> 63.19), so would a
+# larger step have let the textbook method converge in the window the figure
+# draws? Every other family's free parameter was ablated; the analytic one's
+# step is fixed by law rather than chosen, and the law was never tested against
+# the alternative on this plant.
+#
+# WHY A SWEEP AND NOT ONE LARGER ARM. The author's first proposal was a single
+# step about an order of magnitude up. That lands 2.5x PAST the classical limit
+# 2/L, where projected gradient is not guaranteed to converge at all -- and
+# this project has been there: a literal 0.05 in earlier studies sat 5.0x to
+# 23.9x above 2/L on four of seven plants, limit-cycling while the box kept
+# max|u| pinned and HID IT (methodology section 5). A lone arm there would have
+# measured that failure and read as "the baseline is bad". Five arms straddling
+# the limit measure where it is instead.
+#
+# THE FIVE STEPS are exact binary scalings of Figure 3's own gated literal, so
+# each is the plant's own 1/L times a power of two and none is a hand-typed
+# number:
+#
+#   x1   0.0003605716441576073   = 1/(2L)  -- Figure 3's declared law
+#   x2   0.0007211432883152146   = 1/L     -- the previous law
+#   x4   0.0014422865766304293   = 2/L     -- THE CLASSICAL STABILITY LIMIT
+#   x8   0.0028845731532608585   = 4/L     -- twice past it
+#   x16  0.005769146306521717    = 8/L     -- four times past it
+#
+# L = 1386.686968045 on this plant, from the same single-home eigvalsh kernel
+# the step gate uses. Each scaling was asserted exact (v/k == s) at authoring.
+#
+# THERE IS NO STEP GATE HERE, and that is a consequence of the grammar rather
+# than an omission. `fraction` is ONE value per document and Annex 01 section 4
+# makes two gates of one kind a declaration error, so a cast holding five steps
+# has four literals a single declared fraction must refuse. The annex records
+# this explicitly (amended 2026-08-12, same day, after the first draft of that
+# amendment claimed the widened set made such a sweep gateable -- it does not).
+# What the gate would have caught is instead caught by construction: every
+# literal above is a power-of-two multiple of a literal that IS gated, in
+# `fig3_large_depth.toml`, against this plant's own matrices.
+#
+# WHY IT IS NEARLY FREE. Standard-PGD trains nothing -- its 79 syntheses in the
+# Figure-3 ladder have a median wall time of 0.0 s -- so the whole cost is the
+# evaluation pass. It is deterministic, so `training.seeds` is pinned to ONE:
+# its across-seed spread is exactly zero by construction, and five identical
+# syntheses would buy five identical numbers. 5 steps x 10 depths = 50
+# evaluations, about twenty minutes on this card.
+#
+# WHAT IT IS FOR, AND WHAT IT IS NOT. This document does not decide what
+# Figure 3 draws. Figure 3 declares the advisors' principled law and this
+# ablation answers the reviewer's question beside it -- unless the gap turns
+# out large, in which case fairness decides and the author rules. There is a
+# prediction on record worth failing: UF-alpha's LEARNED steps on this plant
+# sit at 2.5x to 7.5x the declared step, so EIGHT OF ITS TEN are at or above
+# 2/L. If a fixed step there degrades while a learned one does not, the
+# mechanism is that an unrolled network trained for a FINITE J, with the
+# projection bounding its iterates, can exploit steps a fixed-step method
+# cannot safely use. That is currently a hypothesis; this document is what
+# turns it into a measurement.
+
+id = "icassp/pgd_step_ablation_n100"
+
+# D19: Figure 3's frozen plant. The comparison is against Figure 3's own
+# Standard-PGD column, so the plant must be identical rather than similar -- and
+# identity is what lets the x1 arm reuse Figure 3's models outright.
+[problem]
+path = "icassp_n100m30_N100_u0p1_s0.npz"
+
+# Figure 3's substrate. Precision is content and signs every ModelID, so an
+# ablation run at another precision would not be comparable with the figure it
+# is about.
+[compute]
+backend = "torch"
+device = "cuda"
+precision = "float32"
+
+[training]
+seeds = [0]
+
+[training.data]
+kind = "gaussian"
+seed = 0
+process_noise_std = 0.5
+initial_state_std = 0.5
+
+[training.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.05
+epochs = 500
+
+[training.batch]
+effective_size = 8192
+
+[evaluation]
+metrics = ["expected_cost"]
+
+[evaluation.protocol]
+_build = "protocol"
+n_batches = 8
+
+[evaluation.protocol.batch_spec]
+_build = "gaussian"
+batch_size = 4096
+seed = 0
+process_noise_std = 0.5
+initial_state_std = 0.5
+
+# -- the contenders --------------------------------------------------------
+#
+# Five copies of the analytic stepper, one per step. `family = "unfolded_fixed"`
+# is the non-learning kind: fixed step, true Riccati P, nothing trained. The
+# labels carry the multiple so the drawn legend reads as the sweep it is; each
+# is registered nowhere in the colour registry, which is deliberate -- five arms
+# of ONE method should take five slots of one ramp rather than five identities.
+
+[[contenders]]
+label = "pgd_x1"
+display = 'PGD $1/(2L)$ (declared)'
+family = "unfolded_fixed"
+role = "baseline"
+
+[contenders.config]
+num_iterations = 1
+step_size_init = 0.0003605716441576073
+step_size_max = 1.0
+horizon = 100
+init_method = "cold"
+
+[[contenders]]
+label = "pgd_x2"
+display = 'PGD $1/L$'
+family = "unfolded_fixed"
+
+[contenders.config]
+num_iterations = 1
+step_size_init = 0.0007211432883152146
+step_size_max = 1.0
+horizon = 100
+init_method = "cold"
+
+[[contenders]]
+label = "pgd_x4"
+display = 'PGD $2/L$ (classical limit)'
+family = "unfolded_fixed"
+
+[contenders.config]
+num_iterations = 1
+step_size_init = 0.0014422865766304293
+step_size_max = 1.0
+horizon = 100
+init_method = "cold"
+
+[[contenders]]
+label = "pgd_x8"
+display = 'PGD $4/L$'
+family = "unfolded_fixed"
+
+[contenders.config]
+num_iterations = 1
+step_size_init = 0.0028845731532608585
+step_size_max = 1.0
+horizon = 100
+init_method = "cold"
+
+[[contenders]]
+label = "pgd_x16"
+display = 'PGD $8/L$'
+family = "unfolded_fixed"
+
+[contenders.config]
+num_iterations = 1
+step_size_init = 0.005769146306521717
+step_size_max = 1.0
+horizon = 100
+init_method = "cold"
+
+# The two references, so the sweep can be read without reaching into another
+# study: the attainable baseline every arm must beat to be worth drawing, and
+# the floor none of them can pass. Both are step-invariant and already stored at
+# this substrate, so they reuse by identity and cost nothing.
+[[contenders]]
+label = "truncated_riccati"
+display = 'Truncated-Riccati'
+family = "truncated_riccati"
+role = "baseline"
+
+[contenders.config]
+horizon = 100
+
+[[contenders]]
+label = "riccati_unconstrained"
+display = 'Riccati (unconstrained)'
+family = "riccati"
+role = "reference"
+
+[contenders.config]
+horizon = 100
+
+# -- what varies -----------------------------------------------------------
+
+# Depth, exactly as Figure 3 sweeps it. `applies_to` names the five steppers:
+# the two references are depth-invariant and would otherwise be emitted ten
+# times each for ten identical results.
+[[sweep]]
+path = "contenders.*.config.num_iterations"
+values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+applies_to = ["pgd_x1", "pgd_x2", "pgd_x4", "pgd_x8", "pgd_x16"]
+
+# -- what must hold --------------------------------------------------------
+
+# The instance gate only. On this plant the box is active on a third of scalar
+# control entries along the unconstrained loop, and a study where it does not
+# bind is a study whose instance has drifted.
+[[gates]]
+kind = "constraint_binds"
+min_fraction = 0.01
+
+# -- what is computed from the results -------------------------------------
+
+[[analyses]]
+id = "pgd_cost_by_depth_and_step"
+kind = "cost_vs_axis"
+axis = "contenders.*.config.num_iterations"
+aggregate = "mean"
+
+[[figures]]
+id = "fig_pgd_step_ablation_n100"
+kind = "axis_scaling"
+source = "pgd_cost_by_depth_and_step"
+xlabel = "unrolling depth $J$"
+ylabel = "expected cost"
+title = "The analytic baseline against its step size, n = 100"
+
+[figures.table]
+columns = ["contender", "axis_value", "aggregate", "n_seeds"]
+caption = "Mean cost by depth for five fixed steps, from 1/(2L) to 8/L."
+
+[figures.table.precision]
+default = 4
+axis_value = 0
+n_seeds = 0
+
+# -- per-study tier overlay ------------------------------------------------
+
+# ONE SEED, and it is this document's whole economy: the cast trains nothing and
+# is deterministic, so five seeds would be five identical syntheses and five
+# identical evaluations. Pinned by name, the overlay-escape lesson.
+[tier_overrides.publication]
+"training.seeds" = 1
+
+[tier_overrides.publication_b16k]
+"training.seeds" = 1
+
+[tier_overrides.smoke]
+"training.seeds" = 1

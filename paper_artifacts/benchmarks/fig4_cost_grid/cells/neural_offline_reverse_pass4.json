@@ -1,0 +1,27 @@
+{
+ "phase": "offline",
+ "contender": "neural",
+ "seed": 0,
+ "study": "studies/icassp/fig1_depth.toml",
+ "tier": "publication_b16k",
+ "axis_filter": {
+  "contenders.*.config.num_iterations": 3
+ },
+ "bench_wall_s": 15.856905205000658,
+ "baseline_rss_bytes": 708210688,
+ "peak_rss_bytes": 9836699648,
+ "current_rss_bytes": 9655738368,
+ "kind": "trainable",
+ "declared_epochs": 200,
+ "bench_epochs": 5,
+ "per_epoch_s": [
+  3.7601547140075127,
+  2.6625485480035422,
+  2.5944000070012407,
+  2.688424092004425,
+  2.608811326994328
+ ],
+ "per_epoch_median_s": 2.6625485480035422,
+ "setup_s": 1.5425665169896092,
+ "offline_time_s": 534.052276117698
+}

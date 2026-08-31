@@ -1,0 +1,273 @@
+# ICASSP Figure 2, the sweep's EXPENSIVE condition: the world-trained column
+# as a function of mismatch severity.
+#
+# The five learned families train on trajectories the theta-rotated plant
+# generated while their declared model stays nominal, and are scored blind on
+# that same plant. This is the only one of the sweep's three conditions that
+# costs training -- the told and blind columns are evaluations of Figure 1's
+# models and live in their own documents -- so it is authored first and run
+# first, and the other two follow it in minutes.
+#
+# THETA = 0 IS THE MATCHED CONDITION AND COSTS NOTHING. The nominal plant IS
+# the zero-rotation plant, so the first position's training world is the ABSENT
+# world (Annex 01 2.3.5, ""), which signs nothing: its learned points are
+# Figure 1's models bit for bit, and the sweep's left endpoint is the figure it
+# must agree with rather than a re-run of it.
+#
+# THE ANALYTIC PAIR IS HERE FOR THE FLOOR. A closed-form controller cannot
+# train on a world, so it carries no training axis (applies_to below) and its
+# cell is the nominal controller evaluated blind on the theta-plant -- which is
+# exactly the reference a reader needs: it separates "this plant is harder"
+# from "this controller went stale". Measured at 30 deg, the two answers differ
+# by 12.8 points.
+#
+# COST at publication_b16k, from Table 4's own measurement (J = 3): per angle
+# the convex policy dominates at 5 x 2430 s, the recurrent baseline adds
+# 5 x 536 s and the three unfolded families some 25 min together -- about 4.5 h
+# per angle, and 30 deg is already trained except for the unfolded families,
+# whose budget moved to 200 epochs on 2026-08-13.
+
+id = "icassp/fig2_angle_world"
+
+[problem]
+path = "icassp_n4m2_N100_u0p1_s0.npz"
+
+[compute]
+backend = "torch"
+device = "cpu"
+precision = "float64"
+
+[training]
+seeds = [0]
+
+[training.data]
+kind = "gaussian"
+seed = 0
+process_noise_std = 0.5
+initial_state_std = 0.5
+
+[training.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.01
+epochs = 100
+
+[training.batch]
+effective_size = 8192
+
+[evaluation]
+metrics = ["expected_cost"]
+
+[evaluation.protocol]
+_build = "protocol"
+n_batches = 8
+
+[evaluation.protocol.batch_spec]
+_build = "gaussian"
+batch_size = 4096
+seed = 0
+process_noise_std = 0.5
+initial_state_std = 0.5
+
+# -- the contenders --------------------------------------------------------
+#
+# Figure 1's cast minus the two bounds, at the nominal depth J = 3, carrying
+# the campaign's HALVED step literals (the 2026-08-09 half-step law) so the
+# matched position reuses Figure 1's models rather than minting new ones.
+
+[[contenders]]
+label = "truncated_riccati"
+display = 'Clipped-LQR'
+family = "truncated_riccati"
+role = "baseline"
+
+[contenders.config]
+horizon = 100
+
+[[contenders]]
+label = "standard_pgd"
+display = 'PGD'
+family = "unfolded_fixed"
+role = "baseline"
+
+[contenders.config]
+num_iterations = 3
+step_size_init = 0.028513775485296815
+step_size_max = 1.0
+horizon = 100
+init_method = "cold"
+
+[[contenders]]
+label = "unfolded_alpha"
+display = 'UF-$\alpha$'
+family = "unfolded"
+
+[contenders.config]
+kind = "learned_step_size"
+num_iterations = 3
+step_size_init = 0.028513775485296815
+step_size_max = 1.0
+horizon = 100
+init_method = "cold"
+
+[contenders.config.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.05
+epochs = 100
+
+[[contenders]]
+label = "unfolded_alpha_p"
+display = 'UF-$\alpha$P'
+family = "unfolded"
+
+[contenders.config]
+kind = "learned_step_size_and_matrix"
+num_iterations = 3
+step_size_init = 0.028513775485296815
+step_size_max = 1.0
+horizon = 100
+init_method = "cold"
+
+[contenders.config.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.05
+epochs = 100
+
+[[contenders]]
+label = "unfolded_alpha_pj"
+display = 'UF-$\alpha$P$^{(j)}$'
+family = "unfolded"
+
+[contenders.config]
+kind = "learned_step_size_and_per_iteration_matrix"
+num_iterations = 3
+step_size_init = 0.028513775485296815
+step_size_max = 1.0
+horizon = 100
+init_method = "cold"
+
+[contenders.config.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.05
+epochs = 100
+
+[[contenders]]
+label = "neural"
+display = 'GRU'
+family = "neural"
+
+[contenders.config]
+hidden_dim = 64
+model_type = "GRU"
+
+[contenders.config.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.01
+epochs = 100
+
+[[contenders]]
+label = "cocp"
+display = 'COCP'
+family = "cocp"
+
+[contenders.config]
+solver_backend = "MOREAU"
+solver_device = "cpu"
+solver_eps = 1e-8
+solver_max_iters = 10000
+
+[contenders.config.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.1
+epochs = 100
+
+# -- what varies -----------------------------------------------------------
+#
+# One zipped pair = one effective axis with six positions, the angle. The
+# world tracks the plant being scored on, which is what makes this the
+# world-trained condition rather than a zero-shot one.
+
+[[sweep]]
+path = "evaluation.problem"
+values = [
+    "icassp_n4m2_N100_u0p1_s0.npz",
+    "icassp_n4m2_N100_u0p1_s0_rotA5.npz",
+    "icassp_n4m2_N100_u0p1_s0_rotA10.npz",
+    "icassp_n4m2_N100_u0p1_s0_rotA20.npz",
+    "icassp_n4m2_N100_u0p1_s0_rotA30.npz",
+    "icassp_n4m2_N100_u0p1_s0_rotA45.npz",
+]
+labels = ["0", "5", "10", "20", "30", "45"]
+
+# The world reaches only the contenders that can read it: a closed-form
+# controller cannot train on anything, and an unrestricted axis here would
+# mint a duplicate analytic ModelID per angle (the granularity probe of
+# 2026-08-08). "" is the ABSENT world -- it signs nothing, so position 0's
+# learned points ARE Figure 1's models.
+[[sweep]]
+path = "training.problem"
+values = [
+    "",
+    "icassp_n4m2_N100_u0p1_s0_rotA5.npz",
+    "icassp_n4m2_N100_u0p1_s0_rotA10.npz",
+    "icassp_n4m2_N100_u0p1_s0_rotA20.npz",
+    "icassp_n4m2_N100_u0p1_s0_rotA30.npz",
+    "icassp_n4m2_N100_u0p1_s0_rotA45.npz",
+]
+applies_to = ["unfolded_alpha", "unfolded_alpha_p", "unfolded_alpha_pj", "neural", "cocp"]
+compose = "zip"
+
+# -- what must hold --------------------------------------------------------
+
+[[gates]]
+kind = "constraint_binds"
+min_fraction = 0.01
+
+# The half-step law over the materialised (plant, step) pairs. The ROOT
+# problem is nominal at every position -- the sweep moves the evaluation and
+# training worlds, not the document's own plant -- so every declared literal
+# is checked against the nominal plant's exact 0.5 x 1/L.
+[[gates]]
+kind = "step_is_inverse_lipschitz"
+contenders = ["standard_pgd", "unfolded_alpha", "unfolded_alpha_p", "unfolded_alpha_pj"]
+fraction = 0.5
+
+# -- what is computed from the results -------------------------------------
+
+[[analyses]]
+id = "cost_by_angle_world"
+kind = "cost_by_category"
+axis = "evaluation.problem"
+aggregate = "mean"
+
+# -- per-study tier overlay ------------------------------------------------
+#
+# Figure 1's per-family budgets, carried here for the reason the merged
+# documents carry them: this sweep's theta = 0 position IS Figure 1's matched
+# column, so a family trained here at a different budget would put a different
+# model behind the same point. Both publication tiers are pinned BY NAME (a
+# b16k launch escaped a publication-only pin once, on 2026-08-09, and silently
+# trained double), and the specific keys are written AFTER the wildcard
+# because the overlay applies its keys in declaration order.
+
+[tier_overrides.publication]
+"contenders.*.config.plan.epochs" = 100
+"contenders.neural.config.plan.epochs" = 200
+"contenders.unfolded_alpha.config.plan.epochs" = 200
+"contenders.unfolded_alpha_p.config.plan.epochs" = 200
+"contenders.unfolded_alpha_pj.config.plan.epochs" = 200
+
+[tier_overrides.publication_b16k]
+"contenders.*.config.plan.epochs" = 100
+"contenders.neural.config.plan.epochs" = 200
+"contenders.unfolded_alpha.config.plan.epochs" = 200
+"contenders.unfolded_alpha_p.config.plan.epochs" = 200
+"contenders.unfolded_alpha_pj.config.plan.epochs" = 200
+
+[tier_overrides.smoke]
+"contenders.*.config.plan.epochs" = 3

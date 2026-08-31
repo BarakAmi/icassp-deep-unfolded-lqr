@@ -1,0 +1,52 @@
+**/results/**/{inference,inferencing}*/
+**/results/**
+**/desktop.ini
+**/.venv/
+**/__pycache__/
+
+# Experiment run artifacts, in full. Nothing under the top-level
+# experiments/ is ever committed -- not the payloads, not the figures, and
+# not the metadata.json sidecars, 104 of which were previously tracked in
+# violation of this rule. Every run is reproducible from its specification
+# and seed; the store, not the repository, is where results live.
+#
+# The leading slash anchors this to the repository root and is load-bearing:
+# an unanchored `experiments/` also matches notebooks/experiments/, which
+# would silently exclude every experiment notebook from version control.
+/experiments/
+
+# The default content store. `mbl run` without `--store` and without
+# $MBL_STORE writes to ./store (cli/app.py's DEFAULT_STORE), so any command
+# issued from the repository root creates one here -- a 1.9 MB stray was
+# deleted by hand during the vertical slice.
+#
+# The leading slash is load-bearing for the same reason it is above, and here
+# the collision is not hypothetical: an unanchored `store/` would also match
+# `src/mbl/store/` and `tests/store/`, silently untracking Tier 4 and its
+# suite. The same unanchored-pattern trap has already cost this project a
+# cold-start run (`rsync --exclude 'store'` dropped both of those directories
+# and the run reported "no tests ran" rather than failing).
+/store/
+
+# Agent-local state. Not shared configuration: the accumulated entries carry
+# per-session identifiers and absolute machine paths.
+.claude/*
+# ...except the workflows themselves, which are process this project reviews
+# like any other document rather than machine-local habit. Note `.claude/*`
+# and not `.claude/`: git cannot re-include a path under an excluded
+# DIRECTORY, so the negation below would be unreachable.
+!.claude/skills/
+!.claude/hooks/
+
+# Build and tooling caches.
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Executed notebooks are build artifacts (D9): git tracks the output-free
+# source, the rendered copy is regenerated.
+**/*.nbconvert.ipynb
+**/*-executed.ipynb

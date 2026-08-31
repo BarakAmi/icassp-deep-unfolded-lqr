@@ -1,0 +1,31 @@
+{
+ "phase": "online",
+ "contender": "neural",
+ "seed": 0,
+ "model_id": "1807e0e2e1c53337",
+ "study": "studies/icassp/fig1_depth.toml",
+ "tier": "publication_b16k",
+ "axis_filter": {
+  "contenders.*.config.num_iterations": 3
+ },
+ "setup_s": 0.02139220900426153,
+ "per_step_s": 2.9141003324184567e-05,
+ "per_step_p10_s": 2.8452005062717943e-05,
+ "per_step_p90_s": 7.61300005251542e-05,
+ "per_step_calls": 2000,
+ "per_step_batch_size": 1,
+ "batched_wall_s": [
+  0.1618071340053575,
+  0.158477295000921,
+  0.16820505599025637,
+  0.14291860499361064,
+  0.14444555899535771,
+  0.14523965898843016,
+  0.14052751898998395,
+  0.13865559399710037
+ ],
+ "batched_batch_size": 4096,
+ "baseline_rss_bytes": 708403200,
+ "rss_after_load_bytes": 730685440,
+ "peak_rss_bytes": 1118945280
+}

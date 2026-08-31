@@ -1,0 +1,203 @@
+# ICASSP -- the convex policy's learning rate, the LAST untuned competitor.
+#
+# THE QUESTION is the one this campaign has asked of every other family, and
+# COCP is the only one left it has not been asked of. The unfolded kinds were
+# re-tuned to 0.05 after 0.01 was measured under-trained; the GRU was re-tuned
+# to 0.02 after its own five-seed sweep; the analytic PGD's step is 1/(2L) by
+# law rather than by choice. COCP's 0.1 was declared once, early, and has
+# never been moved or defended. A paper that reports "indistinguishable from
+# the convex policy at a fraction of the cost" cannot leave the convex
+# policy's only free hyper-parameter unmeasured -- the margin is 0.013 %, and
+# a rate nobody tuned is exactly where a reviewer will look for it.
+#
+# THE RATES: 0.03, 0.1, 0.3 -- half a decade apart, the incumbent in the
+# middle. Three points rather than five because each one costs 41 minutes per
+# seed (measured: 2417-2729 s per training at batch 16384, from this
+# campaign's own store), and because the incumbent is bracketed rather than
+# extrapolated from: a sweep whose winner sits at an endpoint would have to be
+# extended, and one whose winner is the middle point is finished.
+#
+# THE INCUMBENT ARM IS FREE. Every effective field below is Figure 1's, so the
+# 0.1 points resolve to Figure 1's own ModelIDs and the run reuses them --
+# `would train 10, reused 5` is the arithmetic to check before the night, and
+# it is also this document's licence to be believed: the middle column IS the
+# drawn figure's COCP column, not a re-measurement of it.
+#
+# TIER `publication_b16k`, AND THAT IS NOT OPTIONAL. A rate chosen at batch
+# 8192 and then applied at 16384 is a rate chosen at a budget the paper does
+# not use; the campaign's standing rule against comparing two tiers' numbers
+# applies to choosing between arms just as it applies to reading a table.
+#
+# THIS IS ITS OWN DOCUMENT, for the reason the width and GRU-rate ablations
+# are: `cost_vs_axis` groups on ONE declared axis, and a second swept axis is
+# reduced as though it were a training replicate -- which fabricates the error
+# bar rather than merely blurring the mean, and is now refused.
+
+id = "icassp/cocp_lr_probe"
+
+# D19: the frozen plant, committed beside the study -- Figure 1's own. The
+# incumbent arm can only be reused if the plant is identical rather than
+# merely similar, and the reuse is what makes this probe cheap.
+[problem]
+path = "icassp_n4m2_N100_u0p1_s0.npz"
+
+# CPU/float64, Figure 1's substrate. Measured, not preferred: at this problem
+# size MOREAU-on-CUDA is 5x SLOWER than MOREAU-on-CPU (0.056 s against 0.011 s
+# per solve at float32), and precision is content -- a rate chosen at float32
+# would not be the rate the figure runs at.
+[compute]
+backend = "torch"
+device = "cpu"
+precision = "float64"
+
+[training]
+seeds = [0]
+
+[training.data]
+kind = "gaussian"
+seed = 0
+process_noise_std = 0.5
+initial_state_std = 0.5
+
+[training.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.1
+epochs = 100
+
+[training.batch]
+effective_size = 8192
+
+[evaluation]
+metrics = ["expected_cost"]
+
+[evaluation.protocol]
+_build = "protocol"
+n_batches = 8
+
+[evaluation.protocol.batch_spec]
+_build = "gaussian"
+batch_size = 4096
+seed = 0
+process_noise_std = 0.5
+initial_state_std = 0.5
+
+# -- the contenders --------------------------------------------------------
+
+# The convex policy under ablation, declared exactly as Figure 1 declares it.
+# `solver_backend` is spelled out although it is the default, because D17
+# makes it part of what this model IS and it is signed into the ModelID.
+#
+# `learning_rate` is declared here and REPLACED at every point by the sweep
+# below. The value written is the INCUMBENT rather than the axis's first, so
+# that a reader who ignores the sweep still sees the rate under defence.
+[[contenders]]
+label = "cocp"
+display = 'COCP'
+family = "cocp"
+
+[contenders.config]
+solver_backend = "MOREAU"
+solver_device = "cpu"
+solver_eps = 1e-8
+solver_max_iters = 10000
+
+[contenders.config.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.1
+epochs = 100
+
+# The number a learned policy has to beat to be worth its parameters, at every
+# rate. Rate-invariant, so it draws as one level and gives the sweep something
+# to be read against.
+[[contenders]]
+label = "truncated_riccati"
+display = 'Truncated-Riccati'
+family = "truncated_riccati"
+role = "baseline"
+
+[contenders.config]
+horizon = 100
+
+# The unconstrained floor: not a competitor, and `role = "reference"` gives it
+# §B.3.1's reserved encoding rather than a palette slot.
+[[contenders]]
+label = "riccati_unconstrained"
+display = 'Riccati (unconstrained)'
+family = "riccati"
+role = "reference"
+
+[contenders.config]
+horizon = 100
+
+# -- what varies -----------------------------------------------------------
+
+# `applies_to` is load-bearing: without it the two rate-invariant contenders
+# would each be emitted once per rate, for three identical results apiece.
+[[sweep]]
+path = "contenders.*.config.plan.optimizer.learning_rate"
+values = [0.03, 0.1, 0.3]
+applies_to = ["cocp"]
+
+# -- what must hold --------------------------------------------------------
+
+# The same gate Figure 1 declares. At rho = 0.999 and u_max = 0.1 the box is
+# active on 77.61 % of scalar control entries along the unconstrained loop, so
+# a study in which it does not bind is a study whose instance has drifted.
+[[gates]]
+kind = "constraint_binds"
+min_fraction = 0.01
+
+# -- what is computed from the results -------------------------------------
+
+[[analyses]]
+id = "cocp_cost_by_learning_rate"
+kind = "cost_vs_axis"
+axis = "contenders.*.config.plan.optimizer.learning_rate"
+aggregate = "mean"
+
+[[figures]]
+id = "cocp_lr_probe_cost"
+kind = "axis_scaling"
+source = "cocp_cost_by_learning_rate"
+xlabel = "Adam learning rate"
+ylabel = "expected cost"
+title = "The convex policy against its learning rate"
+xscale = "log"
+
+# Every value the figure drew, so the rate is chosen from numbers rather than
+# from a curve read with a ruler. The acceptance question is whether any
+# rate-to-rate difference EXCEEDS the across-seed spread, and that cannot be
+# answered from the plotted mean alone.
+[figures.table]
+columns = [
+    "contender",
+    "axis_value",
+    "aggregate",
+    "across_seed_spread",
+    "n_seeds",
+    "per_seed_aggregate",
+]
+caption = "Mean cost by Adam learning rate, convex policy (MOREAU, cpu)."
+
+[figures.table.precision]
+default = 4
+n_seeds = 0
+
+# -- per-study tier overlay ------------------------------------------------
+
+# THE PIN, and it is not optional. `[publication_b16k]` writes `epochs = 200`
+# while this campaign's declared instance is 100, and an unpinned run both
+# costs twice what it should AND produces a COCP that is not Figure 1's --
+# which would lose the free incumbent arm along with the comparison.
+# The overlay binds to a tier NAME: the first b16k launch of another document
+# escaped exactly this pin and silently trained double (2026-08-09).
+[tier_overrides.publication_b16k]
+"contenders.*.config.plan.epochs" = 100
+
+[tier_overrides.publication]
+"contenders.*.config.plan.epochs" = 100
+
+[tier_overrides.smoke]
+"contenders.*.config.plan.epochs" = 3

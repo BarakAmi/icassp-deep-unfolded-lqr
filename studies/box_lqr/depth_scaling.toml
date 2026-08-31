@@ -1,0 +1,304 @@
+# NB04 -- Box-Constrained LQR, depth scaling.
+#
+# The first study expressed declaratively (parent §7.2's Stage 2 deliverable),
+# and the reference for what this grammar can say. It replaces the contender
+# half of `applications/studies/nb04_box_constrained.py`, and
+# `tests/spec/test_loader.py` asserts contender-by-contender that the two
+# resolve to the *same signature trees* -- this file is checked against the
+# module, not against itself.
+#
+# Six contenders on one shared box-constrained (|u_t| <= 0.5) stochastic LQR
+# instance. Only three of them carry an unrolling depth; Truncated-Riccati,
+# COCP and COCP-LB are depth-invariant, so the eight-point depth axis costs
+# 3*8 + 3 = 27 trainings and not 48.
+
+id = "box_lqr/depth_scaling"
+
+# D19: the matrices are DATA, committed beside the study. The generator that
+# authored them (`LQRProblemFactory`, n=4 m=2 N=50 u_max=0.5 seed=0) is
+# recorded inside the file as provenance and takes no part in identity --
+# regenerating it on another machine would give different last bits and
+# therefore a different ProblemID, which is the defect D19 closes.
+[problem]
+path = "box_lqr_n4m2_N50_u0.5_s0.npz"
+
+[compute]
+backend = "torch"
+device = "cpu"
+precision = "float64"
+
+[training]
+seeds = [0]
+
+# The distribution the training trajectories are drawn from -- its OWN
+# declaration, distinct from `evaluation.protocol.batch_spec`. That separation
+# is the structural fix for the retraining defect: an evaluation knob cannot
+# reach a model, and a training knob cannot reach a measurement. It carries no
+# batch size; the count is `training.batch.effective_size`, which is the one a
+# tier may scale.
+[training.data]
+kind = "gaussian"
+seed = 0
+process_noise_std = 0.5
+initial_state_std = 1.0
+
+# The study's DEFAULT fitting procedure, materialised into every contender that
+# accepts one and declares none (Annex 01 §2.3.4). All three of the learned
+# contenders below declare their own, so here it documents the study's intent
+# and reaches nobody -- and, since Stage 2 Phase G-2, it takes no part in any
+# identifier. A study whose contenders shared one plan would write it only here.
+[training.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.01
+epochs = 200
+
+[training.batch]
+effective_size = 256
+
+[evaluation]
+metrics = ["expected_cost"]
+
+[evaluation.protocol]
+_build = "protocol"
+n_batches = 8
+
+# `state_dim` and `horizon` are deliberately absent: they are the problem's,
+# and a document that could restate a dimension could disagree with the
+# matrices it is scored against.
+[evaluation.protocol.batch_spec]
+_build = "gaussian"
+batch_size = 256
+seed = 0
+process_noise_std = 0.5
+initial_state_std = 1.0
+
+# -- the contenders --------------------------------------------------------
+#
+# `label` is the JOIN KEY -- series selection, `applies_to`, the colour
+# registry, gate grouping and `mbl models list --contender` all match it
+# exactly -- and `display` is what a READER sees (Annex 01 §2.2.1). Neither
+# reaches an identifier: `ContenderSpec.get_signature()` signs the resolved
+# recipe's tree, which a spec-level field never enters.
+#
+# The display names are SINGLE-QUOTED, and must be. TOML reads a double-quoted
+# string as a basic string and parses `\a` in `$\alpha$` as an escape, so
+# `display = "Unfolded-$\alpha$+P"` is not a valid document at all. A literal
+# string takes the backslash as written.
+
+# The unconstrained Riccati optimum, saturated onto the box at every step.
+# Non-learnable, and depth-invariant.
+[[contenders]]
+label = "truncated_riccati"
+display = 'Truncated-Riccati'
+family = "truncated_riccati"
+role = "baseline"
+
+[contenders.config]
+horizon = 50
+
+# Fixed step size, true Riccati P, nothing learned -- NB03's Standard-GD under
+# a box, so every inner iterate is now clamped.
+[[contenders]]
+label = "standard_pgd"
+display = 'Standard-PGD'
+family = "unfolded_fixed"
+role = "baseline"
+
+[contenders.config]
+num_iterations = 8
+step_size_init = 0.05
+step_size_max = 1.0
+horizon = 50
+init_method = "cold"
+random_init_std = 1.0
+random_init_seed = 0
+
+# Learned per-iteration step size, true Riccati P. Tied to the UNCONSTRAINED
+# curvature, so expected to be the weaker learned contender under a box.
+[[contenders]]
+label = "unfolded_alpha"
+display = 'Unfolded-$\alpha$'
+family = "unfolded"
+
+[contenders.config]
+kind = "learned_step_size"
+num_iterations = 8
+step_size_init = 0.05
+step_size_max = 1.0
+horizon = 50
+log_first_epochs = 10
+log_every_epochs = 20
+init_method = "cold"
+random_init_std = 1.0
+random_init_seed = 0
+
+[contenders.config.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.01
+epochs = 200
+
+# THE FLAGSHIP: learned step size AND a learned matrix replacing Riccati P.
+# Under an active box the DARE gain is no longer optimal, so this is the only
+# contender that can reshape its cost-to-go for the constraint. Trained
+# layer-wise.
+[[contenders]]
+label = "unfolded_alpha_p"
+display = 'Unfolded-$\alpha$+P'
+family = "unfolded_warmstart"
+
+[contenders.config]
+kind = "learned_step_size_and_matrix"
+num_iterations = 8
+step_size_init = 0.05
+step_size_max = 1.0
+horizon = 50
+log_first_epochs = 10
+log_every_epochs = 20
+init_method = "cold"
+random_init_std = 1.0
+random_init_seed = 0
+
+[contenders.config.schedule]
+_build = "layerwise"
+optimizer = "adam"
+learning_rate = 0.01
+warmup_epochs_per_layer = 25
+refinement_epochs = 100
+train_matrix_from = "refinement"
+activation = "single"
+
+# A fundamentally different kind of learned policy: a per-step differentiable
+# convex QP over a learned cost-to-go, not a projected-gradient unrolling.
+# Depth-invariant, so it trains once.
+#
+# `solver_backend` is spelled out although it is the default, because it is the
+# one field here whose omission would hide something (D17): which conic solver
+# produces the gradients is part of what this model IS, and it is signed into
+# the `ModelID`. It used to be chosen by probing whichever machine ran the job
+# and the verdict was discarded -- which is how this study once trained `cocp`
+# on DIFFCP and `cocp_lower_bound` on MOREAU, because the two canary at
+# different query points. Declaring it costs nothing (a default spelled out
+# signs identically) and the canary now only validates it, refusing a machine
+# that cannot honour it rather than substituting one that can.
+[[contenders]]
+label = "cocp"
+display = 'COCP'
+family = "cocp"
+
+[contenders.config]
+solver_backend = "MOREAU"
+solver_device = "cpu"
+solver_eps = 1e-8
+solver_max_iters = 10000
+log_first_epochs = 10
+log_every_epochs = 20
+
+[contenders.config.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.1
+epochs = 100
+
+# The SAME QP policy, FROZEN at the box-aware SDP's own cost-to-go matrix. A
+# real, feasible policy, so its attained cost is an UPPER bound on the true
+# constrained optimum -- it tightens the bracket from the other side of J_SDP.
+[[contenders]]
+label = "cocp_lower_bound"
+display = 'COCP-LB'
+family = "cocp_lower_bound"
+role = "bound"
+
+[contenders.config]
+process_noise_std = 0.5
+solver_backend = "MOREAU"
+solver_device = "cpu"
+solver_eps = 1e-8
+solver_max_iters = 10000
+
+# -- what varies -----------------------------------------------------------
+
+# `applies_to` is load-bearing: without it the axis would be a silent no-op for
+# the three depth-invariant contenders, and the sweep would emit each of them
+# once per depth for eight identical results.
+[[sweep]]
+path = "contenders.*.config.num_iterations"
+values = [1, 2, 3, 5, 8, 10, 15, 20]
+applies_to = ["standard_pgd", "unfolded_alpha", "unfolded_alpha_p"]
+
+# -- what must hold --------------------------------------------------------
+
+# The recorded failure this study nearly shipped: a box so wide it never binds,
+# silently degenerating the constrained study into an expensive repeat of the
+# unconstrained one.
+[[gates]]
+kind = "constraint_binds"
+min_fraction = 0.01
+
+[[gates]]
+kind = "contenders_separate"
+min_relative_gap = 0.02
+
+# -- what is computed from the results -------------------------------------
+
+# Annex 01 §2.6 / Annex 03 §A.6. Declared here and NOT in Stage 2, because
+# until Tier 6 existed nothing consumed `kind`, and a declaration that takes no
+# effect is decoration -- the failure mode this project has already paid for
+# three times (F2a's dead tier path, G-2's two plan homes, the microbatch).
+#
+# Neither this table nor a figure takes any part in `StudyID`: an analysis is a
+# derivation FROM what the study computed, so adding one must not invalidate a
+# single stored measurement. `mbl analyse studies/box_lqr/depth_scaling.toml`
+# recomputes it from the store, trains nothing, and reads no model.
+#
+# `axis` is spelled out although this study sweeps exactly one thing and would
+# therefore default to it. The default is a fact about TODAY'S document: a
+# second axis added later would silently move this table onto whichever axis
+# happened to be declared first.
+[[analyses]]
+id = "cost_by_depth"
+kind = "cost_vs_axis"
+axis = "contenders.*.config.num_iterations"
+aggregate = "mean"
+
+# The study's headline figure. `source` names the table above, and Annex 03
+# §A.6 makes that table this figure's own `.data.parquet` -- copied under the
+# figure's id rather than referenced, because an analysis REPLACES in place
+# and a reference would silently change what an already-rendered figure claims
+# to have plotted (§B.1.1).
+#
+# No width and no font size here, deliberately: those belong to the style
+# profile (§B.2.1), which is what makes `mbl figure rebuild fig_cost_vs_depth
+# --style ieee-2col` a re-style rather than a contradiction. What a figure may
+# say is what it is ABOUT.
+#
+# The bracket needs no declaration at all. `cocp_lower_bound` carries
+# `role = "bound"` above, and Annex 03 §B.3.1 reserves that role its own grey
+# dashed encoding with the value in the legend -- so the two-sided bracket
+# falls out of the tidy table instead of a hand-maintained reference-line
+# dictionary, which is the defect NB04's refinement plan §2.2 recorded.
+[[figures]]
+id = "fig_cost_vs_depth"
+kind = "axis_scaling"
+source = "cost_by_depth"
+xlabel = "unrolling depth $J$"
+ylabel = "expected cost"
+title = "Cost against unrolling depth"
+
+# -- per-study tier overlay ------------------------------------------------
+
+# The middle of Annex 01 §2.3.1's three editing levels, and subject to the same
+# whitelist as the catalogue. COCP's QP is far slower per epoch than an
+# unrolling, so the shared smoke epoch count is the wrong wiring check here.
+#
+# This overlay wrote `training.plan.epochs` until Stage 2 Phase F2a, and that
+# reduced nothing: every contender here carries its own plan, and
+# `build_engine` trains for THAT. A smoke run of this study cost 146.9 s.
+# Unlike the catalogue, a path here that matches no contender is refused --
+# this overlay is written against this study, so it can only be a typo.
+[tier_overrides.smoke]
+"training.plan.epochs" = 2
+"contenders.*.config.plan.epochs" = 2
+"contenders.*.config.schedule.warmup_epochs_per_layer" = 1
+"contenders.*.config.schedule.refinement_epochs" = 1

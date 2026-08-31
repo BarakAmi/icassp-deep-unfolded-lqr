@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software or its results, please cite the paper."
+title: "Deep-unfolded control for box-constrained LQR — ICASSP artifact"
+abstract: >-
+  Code, study specifications and recorded results for the experiments reported
+  in the paper: the figures, the cost table, the trained controllers and the
+  inference experiments behind them.
+authors:
+  - family-names: Ami
+    given-names: Barak
+license: MIT

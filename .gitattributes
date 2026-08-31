@@ -1,0 +1,7 @@
+# Normalize all text files to LF line endings on checkout/checkin.
+* text=auto eol=lf
+
+# Explicit binary types: never touch line endings, never diff as text.
+*.pdf binary
+*.npy binary
+*.pt binary

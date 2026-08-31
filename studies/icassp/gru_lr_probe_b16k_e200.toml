@@ -1,0 +1,193 @@
+# ICASSP -- the recurrent baseline's rate, RE-ABLATED AT THE BUDGET IT WILL BE
+# DRAWN AT. The rate ablation's own rule, applied to the rate ablation.
+#
+# WHAT FORCED THIS DOCUMENT. The budget probe measured Figure 1's cast at twice
+# its epochs and found exactly one family truncated: the GRU gains 0.0093
+# (8.2892 -> 8.2799) where the three unfolded kinds gain 0.0002-0.0007 and COCP
+# gains nothing at all (8.27051 -> 8.27087, worse by one across-seed spread).
+# The author's ruling of 2026-08-12 is therefore PER-FAMILY CONVERGENCE rather
+# than a uniform budget: the GRU moves to 200 epochs and nothing else does,
+# because retraining three converged families and one expensive converged one,
+# purely for epoch-count parity, would spend ~22 h to change no number.
+#
+# AND THE RATE MOVES WITH THE BUDGET, WHICH IS THE POINT OF THIS DOCUMENT.
+# Section 5.1 established that a capacity verdict taken under a truncated
+# budget is not a capacity verdict; the same sentence applies to a RATE, and
+# here it is not a worry but a measurement -- the winner already flips:
+#
+#            100 epochs   200 epochs
+#   lr 0.01     8.3036       8.2766     <- wins at 200
+#   lr 0.02     8.2892       8.2799     <- wins at 100
+#
+# Carrying the 100-epoch winner (0.02) into a 200-epoch figure would hand the
+# baseline the rate that is second-best at its own budget -- the exact
+# handicap this campaign has removed from every other family.
+#
+# THE GRID IS THE 100-EPOCH ABLATION'S, unchanged, so the two are readable as
+# one table: 0.003, 0.01, 0.02, 0.03, 0.05, five seeds, batch 16384, width 64.
+# Two of the five arms are already trained (0.01 from the 2026-08-09 overlay
+# escape, 0.02 from the budget probe), so this costs 15 trainings, about
+# 2.5 h -- against the ~22 h the uniform-budget alternative would have cost.
+#
+# WHAT FIGURE 1 THEN DRAWS is this document's winner at 200 epochs. The
+# deviation from the campaign's uniform-epoch plan is deliberate, is the
+# author's, and is documented in the methodology beside the measurement that
+# justifies it: every learned family trained to ITS OWN measured convergence,
+# verified per family, rather than every family given the same number.
+
+id = "icassp/gru_lr_probe_b16k_e200"
+
+# D19: the frozen plant, committed beside the study, the same one Figure 1 and
+# the width ablation use. Comparing this probe with Figure 1's GRU requires the
+# plant to be identical, not merely similar.
+[problem]
+path = "icassp_n4m2_N100_u0p1_s0.npz"
+
+[compute]
+backend = "torch"
+device = "cpu"
+precision = "float64"
+
+[training]
+seeds = [0]
+
+[training.data]
+kind = "gaussian"
+seed = 0
+process_noise_std = 0.5
+initial_state_std = 0.5
+
+[training.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.01
+epochs = 200
+
+[training.batch]
+effective_size = 8192
+
+[evaluation]
+metrics = ["expected_cost"]
+
+[evaluation.protocol]
+_build = "protocol"
+n_batches = 8
+
+[evaluation.protocol.batch_spec]
+_build = "gaussian"
+batch_size = 4096
+seed = 0
+process_noise_std = 0.5
+initial_state_std = 0.5
+
+# -- the contenders --------------------------------------------------------
+
+# The GRU at the width the ablation chose, so that the only thing this document
+# varies is the rate. `label` stays "neural": renaming it is not
+# presentation-neutral, since an unregistered label falls through to a spare
+# palette slot.
+#
+# `learning_rate` is declared here and REPLACED at every point by the sweep.
+# The value written is the axis's first, so a document whose declared rate
+# names one it no longer tests cannot mislead on sight.
+[[contenders]]
+label = "neural"
+display = 'GRU'
+family = "neural"
+
+[contenders.config]
+hidden_dim = 64
+model_type = "GRU"
+
+[contenders.config.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.001
+epochs = 200
+
+# The number the GRU has to beat to be worth its parameters, at every rate.
+# Rate-invariant, so it draws as one level and gives the sweep something to be
+# read against -- and it is the contender the width ablation found the small
+# widths failing to beat at all.
+[[contenders]]
+label = "truncated_riccati"
+display = 'Truncated-Riccati'
+family = "truncated_riccati"
+role = "baseline"
+
+[contenders.config]
+horizon = 100
+
+# The unconstrained floor: not a competitor, and `role = "reference"` gives it
+# §B.3.1's reserved encoding rather than a palette slot.
+[[contenders]]
+label = "riccati_unconstrained"
+display = 'Riccati (unconstrained)'
+family = "riccati"
+role = "reference"
+
+[contenders.config]
+horizon = 100
+
+# -- what varies -----------------------------------------------------------
+
+# `applies_to` is load-bearing: without it the two rate-invariant contenders
+# would each be emitted once per rate, for five identical results apiece.
+[[sweep]]
+path = "contenders.*.config.plan.optimizer.learning_rate"
+values = [0.003, 0.01, 0.02, 0.03, 0.05]
+applies_to = ["neural"]
+
+# -- what must hold --------------------------------------------------------
+
+[[gates]]
+kind = "constraint_binds"
+min_fraction = 0.01
+
+# -- what is computed from the results -------------------------------------
+
+[[analyses]]
+id = "cost_by_learning_rate_b16k_e200"
+kind = "cost_vs_axis"
+axis = "contenders.*.config.plan.optimizer.learning_rate"
+aggregate = "mean"
+
+[[figures]]
+id = "gru_lr_probe_cost_b16k_e200"
+kind = "axis_scaling"
+source = "cost_by_learning_rate_b16k_e200"
+xlabel = "Adam learning rate"
+ylabel = "expected cost"
+title = "The recurrent baseline against its learning rate at batch 16384"
+xscale = "log"
+
+[figures.table]
+columns = [
+    "contender",
+    "axis_value",
+    "aggregate",
+    "across_seed_spread",
+    "n_seeds",
+    "per_seed_aggregate",
+]
+caption = "Mean cost by Adam learning rate at batch 16384, GRU with 64 hidden units, n = 4."
+
+[figures.table.precision]
+default = 4
+n_seeds = 0
+
+# -- per-study tier overlay ------------------------------------------------
+
+# THE PIN. `[publication]` writes `epochs = 200` while this campaign's declared
+# instance is 100, and an unpinned run costs twice what it should AND produces
+# a GRU that cannot be compared with Figure 1's.
+[tier_overrides.publication]
+"contenders.*.config.plan.epochs" = 200
+
+# The pin that matters here: this document exists to be run at b16k, and
+# `[publication_b16k]` writes `epochs = 200` exactly as `[publication]` does.
+[tier_overrides.publication_b16k]
+"contenders.*.config.plan.epochs" = 200
+
+[tier_overrides.smoke]
+"contenders.*.config.plan.epochs" = 3

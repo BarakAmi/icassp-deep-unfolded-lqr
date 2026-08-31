@@ -1,0 +1,49 @@
+{
+  "composes": [
+    "00c35cb8ef79f912",
+    "36e7434e860eb9e9",
+    "9604aa47a6601e90"
+  ],
+  "config": {
+    "draw_spread": false,
+    "panels": [
+      [
+        "cost_by_angle_blind",
+        "train\u2013test mismatch\n(uninformed)"
+      ],
+      [
+        "cost_by_angle_told",
+        "train\u2013test mismatch\n(informed)"
+      ],
+      [
+        "cost_by_angle_world",
+        "model mismatch"
+      ]
+    ],
+    "xlabel": "rotation of $A$ [deg]",
+    "ylabel": "expected cost"
+  },
+  "display_names": {
+    "cocp": "COCP",
+    "neural": "GRU",
+    "standard_pgd": "PGD",
+    "truncated_riccati": "Clipped-LQR",
+    "unfolded_alpha": "UF-$\\alpha$",
+    "unfolded_alpha_p": "UF-$\\alpha$P",
+    "unfolded_alpha_pj": "UF-$\\alpha$P$^{(j)}$"
+  },
+  "kind": "severity_panels",
+  "roles": {
+    "standard_pgd": "baseline",
+    "truncated_riccati": "baseline"
+  },
+  "series_order": [
+    "truncated_riccati",
+    "standard_pgd",
+    "unfolded_alpha",
+    "unfolded_alpha_p",
+    "unfolded_alpha_pj",
+    "neural",
+    "cocp"
+  ]
+}

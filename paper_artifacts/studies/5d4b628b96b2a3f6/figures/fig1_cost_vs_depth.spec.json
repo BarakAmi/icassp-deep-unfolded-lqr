@@ -1,0 +1,105 @@
+{
+  "config": {
+    "dispersion": "none",
+    "title": "Cost against unrolling depth",
+    "xlabel": "unrolling depth $J$",
+    "ybreak": [
+      [
+        2.2,
+        7.8
+      ],
+      [
+        8.4,
+        8.75
+      ],
+      [
+        8.99,
+        9.1
+      ]
+    ],
+    "ylabel": "expected cost",
+    "ypanel_weights": [
+      1.0,
+      0.55,
+      21.0,
+      1.0
+    ]
+  },
+  "declarations": {
+    "across_seed_spread_kind": "std",
+    "across_seed_spread_over": "training_seeds",
+    "aggregate": "mean",
+    "aggregation_order": [
+      "evaluation_trajectories",
+      "training_seeds"
+    ],
+    "interval": {
+      "kind": "bootstrap_bca",
+      "level": 0.95,
+      "over": "training_seeds",
+      "reason": null,
+      "resamples": 10000
+    },
+    "n_evaluation_trajectories": 7372800,
+    "n_training_seeds": [
+      5
+    ],
+    "within_seed_spread_kind": "std"
+  },
+  "display_names": {
+    "cocp": "COCP",
+    "cocp_lower_bound": "SDP-frozen policy",
+    "neural": "GRU",
+    "riccati_unconstrained": "Riccati (unconstrained)",
+    "standard_pgd": "Standard-PGD",
+    "truncated_riccati": "Truncated-Riccati",
+    "unfolded_alpha": "UF-$\\alpha$ (learned steps)",
+    "unfolded_alpha_p": "UF-$\\alpha$P (proposed)",
+    "unfolded_alpha_pj": "UF-$\\alpha$P$^{(j)}$ (per-iteration P)"
+  },
+  "id": "fig1_cost_vs_depth",
+  "kind": "axis_scaling",
+  "rendered_at_profile": "ieee-2col",
+  "roles": {
+    "cocp": "contender",
+    "cocp_lower_bound": "bound",
+    "neural": "contender",
+    "riccati_unconstrained": "reference",
+    "standard_pgd": "baseline",
+    "truncated_riccati": "baseline",
+    "unfolded_alpha": "contender",
+    "unfolded_alpha_p": "contender",
+    "unfolded_alpha_pj": "contender"
+  },
+  "series_order": [
+    "riccati_unconstrained",
+    "truncated_riccati",
+    "standard_pgd",
+    "unfolded_alpha",
+    "unfolded_alpha_p",
+    "unfolded_alpha_pj",
+    "neural",
+    "cocp",
+    "cocp_lower_bound"
+  ],
+  "source": "cost_by_depth",
+  "study": "icassp/fig1_depth",
+  "study_id": "5d4b628b96b2a3f6",
+  "table": {
+    "caption": "Mean cost by unrolling depth.",
+    "columns": [
+      "contender",
+      "axis_value",
+      "aggregate",
+      "across_seed_spread",
+      "n_seeds",
+      "per_seed_aggregate"
+    ],
+    "precision": {
+      "axis_value": 0,
+      "default": 4,
+      "n_seeds": 0
+    }
+  },
+  "type": "FigureSpec"
+}

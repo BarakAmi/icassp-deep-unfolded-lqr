@@ -1,0 +1,100 @@
+# The execution-tier catalogue (D15, Annex 01 §2.3.1).
+#
+# A tier scales EFFORT; it never changes content. Every key below must be one
+# of the whitelisted paths of Annex 01 §2.3.2 -- `problem.*`,
+# `contenders.*.family`, `sweep.*.values` and `gates.*` are refused when this
+# file is read, not when the run reaches them.
+#
+# Keys are quoted so TOML keeps them as literal dotted paths rather than
+# expanding them into nested tables: a tier's vocabulary IS the whitelist, and
+# a catalogue that had to be flattened before it could be checked against that
+# list would put the two one transformation apart.
+#
+# Editing this file cannot corrupt existing results. Previously trained models
+# still resolve by their effective fields; what changes is the future, and
+# `tier_catalogue_version` is recorded per model so that "why did this
+# retrain?" has an answer.
+
+version = "1"
+
+# Every tier writes the epoch count TWICE, and that is deliberate.
+# `contenders.*.config.plan.epochs` is the one that executes: a trainable
+# recipe carries its own plan and `build_engine` trains for that. Writing only
+# `training.plan.epochs` -- which is what this file did until Stage 2 Phase F2a
+# -- moved every ModelID and changed no effort whatsoever, which inverts D15
+# rather than bending it. `training.plan.*` is still written so that a resolved
+# study does not declare a 200-epoch plan while running 5; since Phase G-2 the
+# study plan is a default materialised into the contenders, so writing it here
+# costs nothing at all -- it changes no identifier and no effort, and only
+# keeps the resolved document honest.
+#
+# A `*` fans out over the contenders and skips every one that has no such
+# field: three of NB04's six never train, and `unfolded_warmstart` declares a
+# layer-wise `schedule` with no `epochs` in it at all. From this catalogue a
+# path matching nobody is fine -- it is shared across studies that declare
+# different families. From a study's own overlay it is refused, because there
+# it can only be a typo.
+
+# Wiring check; minutes. The one tier permitted to subset a swept axis, and it
+# is safe only because smoke models are disposable by construction -- it also
+# cuts epochs and the batch, so its models differ in effective fields and are
+# never reused by the later full run.
+[smoke]
+"training.seeds" = 1
+"training.plan.epochs" = 5
+"contenders.*.config.plan.epochs" = 5
+"contenders.*.config.schedule.warmup_epochs_per_layer" = 1
+"contenders.*.config.schedule.refinement_epochs" = 2
+"training.batch.effective_size" = 128
+"evaluation.protocol.n_batches" = 1
+
+[smoke.smoke_subset]
+max_points_per_axis = 2
+
+# Exploratory research. The default.
+[standard]
+"training.seeds" = 1
+"training.plan.epochs" = 50
+"contenders.*.config.plan.epochs" = 50
+"contenders.*.config.schedule.warmup_epochs_per_layer" = 6
+"contenders.*.config.schedule.refinement_epochs" = 25
+"training.batch.effective_size" = 2048
+"evaluation.protocol.n_batches" = 4
+
+# Anything entering a paper.
+[publication]
+"training.seeds" = 5
+"training.plan.epochs" = 200
+"contenders.*.config.plan.epochs" = 200
+"contenders.*.config.schedule.warmup_epochs_per_layer" = 25
+"contenders.*.config.schedule.refinement_epochs" = 100
+"training.batch.effective_size" = 8192
+"evaluation.protocol.n_batches" = 8
+"evaluation.protocol.batch_spec.batch_size" = 4096
+
+# `publication` with the training batch at 16384 and NOTHING else -- the
+# ICASSP revision's law (Annex 01 §2.3, added 2026-08-09; costed by probe at
+# x1.8-2.0 per epoch). A separate tier rather than an edit to `publication`
+# so every study stored under the 8192 law keeps resolving -- and replaying
+# -- exactly as it did; tier names are never signed, the effective fields
+# are, so this entry orphans nothing.
+[publication_b16k]
+"training.seeds" = 5
+"training.plan.epochs" = 200
+"contenders.*.config.plan.epochs" = 200
+"contenders.*.config.schedule.warmup_epochs_per_layer" = 25
+"contenders.*.config.schedule.refinement_epochs" = 100
+"training.batch.effective_size" = 16384
+"evaluation.protocol.n_batches" = 8
+"evaluation.protocol.batch_spec.batch_size" = 4096
+
+# Headline claims and final thesis figures.
+[comprehensive]
+"training.seeds" = 10
+"training.plan.epochs" = 400
+"contenders.*.config.plan.epochs" = 400
+"contenders.*.config.schedule.warmup_epochs_per_layer" = 50
+"contenders.*.config.schedule.refinement_epochs" = 200
+"training.batch.effective_size" = 8192
+"evaluation.protocol.n_batches" = 16
+"evaluation.protocol.batch_spec.batch_size" = 4096

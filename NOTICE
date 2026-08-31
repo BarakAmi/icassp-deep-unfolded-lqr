@@ -1,0 +1,12 @@
+model-based-learning-for-stochastic-control
+Copyright (c) 2026 Barak Ami
+
+This product includes software derived from the code released with:
+
+    Akshay Agrawal, Shane Barratt, Stephen Boyd and Bartolomeo Stellato,
+    "Learning convex optimization control policies", 2019.
+    https://github.com/cvxgrp/cocp
+
+That work is licensed under the Apache License, Version 2.0. The derived file
+is `src/mbl/models/constrained/lower_bound.py`, which carries the notice and a
+statement of the changes made, as Apache-2.0 section 4 requires.

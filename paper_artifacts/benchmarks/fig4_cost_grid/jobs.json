@@ -1,0 +1,182 @@
+[
+ {
+  "contender": "riccati_unconstrained",
+  "phase": "offline",
+  "half": "forward"
+ },
+ {
+  "contender": "truncated_riccati",
+  "phase": "offline",
+  "half": "forward"
+ },
+ {
+  "contender": "standard_pgd",
+  "phase": "offline",
+  "half": "forward"
+ },
+ {
+  "contender": "unfolded_alpha",
+  "phase": "offline",
+  "half": "forward"
+ },
+ {
+  "contender": "unfolded_alpha_p",
+  "phase": "offline",
+  "half": "forward"
+ },
+ {
+  "contender": "unfolded_alpha_pj",
+  "phase": "offline",
+  "half": "forward"
+ },
+ {
+  "contender": "neural",
+  "phase": "offline",
+  "half": "forward"
+ },
+ {
+  "contender": "cocp",
+  "phase": "offline",
+  "half": "forward"
+ },
+ {
+  "contender": "cocp_lower_bound",
+  "phase": "offline",
+  "half": "forward"
+ },
+ {
+  "contender": "riccati_unconstrained",
+  "phase": "online",
+  "half": "forward"
+ },
+ {
+  "contender": "truncated_riccati",
+  "phase": "online",
+  "half": "forward"
+ },
+ {
+  "contender": "standard_pgd",
+  "phase": "online",
+  "half": "forward"
+ },
+ {
+  "contender": "unfolded_alpha",
+  "phase": "online",
+  "half": "forward"
+ },
+ {
+  "contender": "unfolded_alpha_p",
+  "phase": "online",
+  "half": "forward"
+ },
+ {
+  "contender": "unfolded_alpha_pj",
+  "phase": "online",
+  "half": "forward"
+ },
+ {
+  "contender": "neural",
+  "phase": "online",
+  "half": "forward"
+ },
+ {
+  "contender": "cocp",
+  "phase": "online",
+  "half": "forward"
+ },
+ {
+  "contender": "cocp_lower_bound",
+  "phase": "online",
+  "half": "forward"
+ },
+ {
+  "contender": "cocp_lower_bound",
+  "phase": "online",
+  "half": "reverse"
+ },
+ {
+  "contender": "cocp",
+  "phase": "online",
+  "half": "reverse"
+ },
+ {
+  "contender": "neural",
+  "phase": "online",
+  "half": "reverse"
+ },
+ {
+  "contender": "unfolded_alpha_pj",
+  "phase": "online",
+  "half": "reverse"
+ },
+ {
+  "contender": "unfolded_alpha_p",
+  "phase": "online",
+  "half": "reverse"
+ },
+ {
+  "contender": "unfolded_alpha",
+  "phase": "online",
+  "half": "reverse"
+ },
+ {
+  "contender": "standard_pgd",
+  "phase": "online",
+  "half": "reverse"
+ },
+ {
+  "contender": "truncated_riccati",
+  "phase": "online",
+  "half": "reverse"
+ },
+ {
+  "contender": "riccati_unconstrained",
+  "phase": "online",
+  "half": "reverse"
+ },
+ {
+  "contender": "cocp_lower_bound",
+  "phase": "offline",
+  "half": "reverse"
+ },
+ {
+  "contender": "cocp",
+  "phase": "offline",
+  "half": "reverse"
+ },
+ {
+  "contender": "neural",
+  "phase": "offline",
+  "half": "reverse"
+ },
+ {
+  "contender": "unfolded_alpha_pj",
+  "phase": "offline",
+  "half": "reverse"
+ },
+ {
+  "contender": "unfolded_alpha_p",
+  "phase": "offline",
+  "half": "reverse"
+ },
+ {
+  "contender": "unfolded_alpha",
+  "phase": "offline",
+  "half": "reverse"
+ },
+ {
+  "contender": "standard_pgd",
+  "phase": "offline",
+  "half": "reverse"
+ },
+ {
+  "contender": "truncated_riccati",
+  "phase": "offline",
+  "half": "reverse"
+ },
+ {
+  "contender": "riccati_unconstrained",
+  "phase": "offline",
+  "half": "reverse"
+ }
+]

@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The lock pins CUDA wheels, which are correct for the workstation and
+  # ~4 GB of pure waste on a CPU-only runner. Honoured where uv can act on
+  # it; harmless where the lock takes precedence.
+  UV_TORCH_BACKEND: cpu
+  # NOT pinned, and the attempt is worth recording because it was measured.
+  #
+  # The intermittent `step_is_inverse_lipschitz` failures looked like
+  # thread-dependent floating-point association: a multithreaded eigenvalue
+  # solve combines partial sums in an order that depends on the thread count,
+  # and a hosted runner's parallelism varies with load. Five runs on one image
+  # had produced 3, 1, 1, 3, 3 failures with no code change between some.
+  #
+  # Pinning OMP/MKL/OPENBLAS_NUM_THREADS=1 was tried on 2026-08-31 and made it
+  # WORSE: 10 failures instead of 3, with two further step-literal classes
+  # failing that had been passing. The frozen literals were authored on this
+  # workstation with multithreaded LAPACK, so forcing single-threaded moves the
+  # recomputation AWAY from the values they were authored against.
+  #
+  # (The two are named in the era-07 plan rather than here: this file ships in
+  # the artifact repository, and gate (b) refuses a shipped file that names
+  # withheld work. It caught this comment, which is what the gate is for.)
+  #
+  # So the instability is real and this is not its cure. Left unpinned, and the
+  # artifact repository's README describes the condition rather than promising
+  # a colour.
+
+jobs:
+  # Style and notebook hygiene need no project dependencies, so they run in
+  # seconds and fail fast, before anything downloads a multi-gigabyte wheel.
+  static:
+    name: Style and notebook hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          # Pinned, not inferred. An unpinned resolve took 3.14 on a clean
+          # runner while development happened on 3.13, so CI was testing a
+          # different interpreter than anyone had ever run.
+          python-version: "3.13"
+
+      - name: Ruff format
+        run: uvx ruff@0.15.20 format --check .
+
+      - name: Ruff lint
+        run: uvx ruff@0.15.20 check .
+
+      - name: Notebooks carry no outputs (D9)
+        run: python3 .github/scripts/check_notebooks_stripped.py
+
+  verify:
+    name: Types and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          # Pinned, not inferred. An unpinned resolve took 3.14 on a clean
+          # runner while development happened on 3.13, so CI was testing a
+          # different interpreter than anyone had ever run.
+          python-version: "3.13"
+
+      - name: Sync environment
+        run: uv sync --frozen --group dev
+
+      - name: Mypy (strict)
+        run: uv run mypy
+
+      # filterwarnings = ["error"] in pyproject makes this a zero-warning
+      # gate as well as a zero-failure one.
+      - name: Pytest
+        run: uv run pytest -q
+
+  # Architecture boundaries are a separate job so a tier violation is
+  # legible in the checks list rather than buried in the full suite.
+  boundaries:
+    name: Architecture boundaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          # Pinned, not inferred. An unpinned resolve took 3.14 on a clean
+          # runner while development happened on 3.13, so CI was testing a
+          # different interpreter than anyone had ever run.
+          python-version: "3.13"
+
+      - name: Sync environment
+        run: uv sync --frozen --group dev
+
+      - name: Tier import rules
+        run: uv run pytest tests/architecture -q

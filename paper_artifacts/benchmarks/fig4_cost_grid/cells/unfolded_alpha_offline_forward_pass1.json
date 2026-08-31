@@ -1,0 +1,27 @@
+{
+ "phase": "offline",
+ "contender": "unfolded_alpha",
+ "seed": 0,
+ "study": "studies/icassp/fig1_depth.toml",
+ "tier": "publication_b16k",
+ "axis_filter": {
+  "contenders.*.config.num_iterations": 3
+ },
+ "bench_wall_s": 3.4147512610070407,
+ "baseline_rss_bytes": 709083136,
+ "peak_rss_bytes": 1783992320,
+ "current_rss_bytes": 1469399040,
+ "kind": "trainable",
+ "declared_epochs": 200,
+ "bench_epochs": 5,
+ "per_epoch_s": [
+  0.7674132569954963,
+  0.4430573129939148,
+  0.4807668499997817,
+  0.390014238000731,
+  0.40032280900049955
+ ],
+ "per_epoch_median_s": 0.4430573129939148,
+ "setup_s": 0.9331767940166174,
+ "offline_time_s": 89.54463939279958
+}
