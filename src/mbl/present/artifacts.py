@@ -121,8 +121,25 @@ def write_figure_artifacts(
         # be written leaves the previous four files intact rather than three
         # of them replaced.
         with profile_context(profile):
-            figure.savefig(staging / f"{name}.pdf", bbox_inches="tight")
-            figure.savefig(staging / f"{name}.png", dpi=RASTER_DPI, bbox_inches="tight")
+            # NO CREATION DATE. Two renders of one figure differ in exactly
+            # three bytes otherwise -- the clock inside `/CreationDate` -- and
+            # nothing else, so the rendering is already deterministic and only
+            # the stamp says otherwise. It matters because a figure that ships
+            # in a paper's artifact repository is redrawn by the reviewer: with
+            # the stamp, an identical redraw reports a modified file and the
+            # reader cannot tell "the same" from "not the same" without opening
+            # both. `None` omits the key rather than writing an empty one.
+            figure.savefig(
+                staging / f"{name}.pdf",
+                bbox_inches="tight",
+                metadata={"CreationDate": None},
+            )
+            figure.savefig(
+                staging / f"{name}.png",
+                dpi=RASTER_DPI,
+                bbox_inches="tight",
+                metadata={"Software": None},
+            )
         table.to_parquet(staging / f"{name}.data.parquet", index=False)
         (staging / f"{name}.spec.json").write_text(
             json.dumps(spec, indent=2, sort_keys=True), encoding="utf-8"

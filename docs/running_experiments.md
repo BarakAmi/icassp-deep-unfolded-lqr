@@ -1,41 +1,47 @@
 # Running the experiments
 
-Every command below was executed against this repository and its results
-bundle. Where a number appears, it was measured rather than estimated.
+Four rungs, from reading a number to rebuilding every model. Each is
+self-contained; stop where you have what you came for.
 
 ## The one thing to get right: the tier
 
-A study document is a *specification*, and a tier scales the effort it is
-executed at. **The two together identify the result** — the same document at
-two tiers resolves to two different sets of records, so every command here
-names its tier and you should not drop it.
+A study document describes an experiment at several **tiers** — a smoke tier, a
+standard tier, and the publication tier the paper reports. The tier is part of
+what identifies a record, not a speed setting, so the same document resolves to
+a different set of results at each one.
 
-Three of the paper's four artifacts were run at `publication_b16k`; the large
-instance was run at `publication`. Asking for the wrong one is not an error, it
-is a different study: Figure 1 at `publication` resolves to a store that is
-25/225 complete, and the refusal reads like a corrupt download.
+Four of this paper's five documents were run at `publication_b16k` and one
+at `publication`. Every command below states the tier. Asking for the wrong one
+gives you a store that is partly complete and a refusal that reads like a
+corrupt download.
 
-| Tier | What it scales | Use |
-|---|---|---|
-| `smoke` | 5 epochs, 1 seed, a subset of each axis | wiring; minutes |
-| `standard` | 50 epochs, 1 seed | exploration |
-| `publication` | the paper's effort | reproduction |
-| `publication_b16k` | the same at batch 16384 | reproduction |
-
----
+| Document | Tier |
+|---|---|
+| `studies/icassp_exact_convex/fig1_depth.toml` | `publication_b16k` |
+| `studies/icassp_exact_convex/fig2_angle_blind.toml` | `publication_b16k` |
+| `studies/icassp_exact_convex/fig2_angle_told.toml` | `publication_b16k` |
+| `studies/icassp_exact_convex/fig2_angle_world.toml` | `publication_b16k` |
+| `studies/icassp_exact_convex/fig5_stress_depth.toml` | `publication` |
 
 ## Rung 1 — redraw the paper's figures
 
 Nothing to download. The figure artifacts ship with the repository.
 
 ```bash
-uv run mbl --store paper_artifacts figure rebuild fig1_cost_vs_depth --style ieee-paper
-uv run mbl --store paper_artifacts figure rebuild fig3_large_cost_vs_depth --style ieee-paper
-uv run python tools/render_severity_figure.py --store paper_artifacts
+uv run mbl --store paper_artifacts figure rebuild fig1_cost_vs_depth_exact --style ieee-paper
+uv run mbl --store paper_artifacts figure rebuild fig5_stress_cost_vs_depth --style ieee-paper
+uv run python tools/render_severity_figure.py --store paper_artifacts \
+    --panel-suffix _exact --figure-id fig2_mismatch_severity_exact \
+    --rename cocp=cocp_exact --style ieee-paper
 ```
 
-Figure 2 is assembled by a script rather than by `mbl figure`, because it is a
-composite of three studies and belongs to no single one of them.
+Figure 2 is assembled by a script rather than by `mbl figure`, because it is
+composed of three studies and belongs to no single one of them. The script
+computes nothing: every point it draws comes from a stored table.
+
+**This is byte-exact.** Redrawing reproduces the shipped files exactly, so
+`git status` is clean when it finishes. If it reports a modified figure,
+something really did change.
 
 **`--store` is a global option**: it goes before the subcommand, never after.
 `mbl figure --store X ...` writes into `./store` instead.
@@ -45,84 +51,72 @@ composite of three studies and belongs to no single one of them.
 Fetch the results bundle from the Releases page and extract it, then:
 
 ```bash
-tar -xzf icassp-results-core.tar.gz            # ~386 MiB, ~1.5 GiB extracted
+tar -xzf results-core.tar.gz
 uv run mbl --store store store reindex          # rebuilds the local index
-uv run mbl --store store store verify           # 1515 identifiers recomputed
+uv run mbl --store store store verify           # recomputes every identifier
 ```
 
-`verify` recomputes every identifier from the record's own specification and
-checks it against the name the record is filed under. All 1,515 match.
+`verify` recomputes each identifier from the record's own specification and
+checks it against the name the record is filed under. This paper rests on
+**575 models and 960 measurements — 1,535 identifiers in all**.
 
 Then re-derive each figure's table:
 
 ```bash
-uv run mbl --store store analyse studies/icassp/fig1_depth.toml       --tier publication_b16k
-uv run mbl --store store analyse studies/icassp/fig2_angle_blind.toml --tier publication_b16k
-uv run mbl --store store analyse studies/icassp/fig2_angle_told.toml  --tier publication_b16k
-uv run mbl --store store analyse studies/icassp/fig2_angle_world.toml --tier publication_b16k
-uv run mbl --store store analyse studies/icassp/fig3_large_depth.toml --tier publication
+uv run mbl --store store analyse studies/icassp_exact_convex/fig1_depth.toml        --tier publication_b16k
+uv run mbl --store store analyse studies/icassp_exact_convex/fig2_angle_blind.toml  --tier publication_b16k
+uv run mbl --store store analyse studies/icassp_exact_convex/fig2_angle_told.toml   --tier publication_b16k
+uv run mbl --store store analyse studies/icassp_exact_convex/fig2_angle_world.toml  --tier publication_b16k
+uv run mbl --store store analyse studies/icassp_exact_convex/fig5_stress_depth.toml --tier publication
 ```
 
-Every plotted column reproduces at exactly `0.000e+00` against the tables the
-paper was written from — measured across all five studies, from a cold start.
+Each writes a tidy table beside the study's records. The tables are derived
+from the per-trajectory costs in the bundle, so what you get is a
+recomputation rather than a copy of ours.
 
-Two columns will **not** match, and it is worth saying why rather than letting
-you find it. `interval_low` and `interval_high` are a bootstrap confidence
-interval, and the tables shipped here were computed before that bootstrap was
-seeded; they differ by up to 2.8e-2. No figure in the paper draws them — every
-figure declares `dispersion: none` — and the analysis is deterministic from now
-on, so two of your own runs will agree exactly. If you diff the parquet files
-column by column, expect those two and nothing else.
-
-The analysis reads `samples.parquet` — the cost of each
-of 32,768 simulated trajectories — so this is a recomputation and not a
-comparison of two summaries.
+To compare against what the paper drew, the shipped `.data.parquet` beside each
+figure holds exactly the plotted values.
 
 ## Rung 3 — re-measure from the published weights
 
+The bundle carries the trained controllers, so their evaluation can be run
+again without retraining anything:
+
 ```bash
-uv run mbl --store store run studies/icassp/fig1_depth.toml --tier publication_b16k
+uv run mbl --store store run studies/icassp_exact_convex/fig1_depth.toml --tier publication_b16k
 ```
 
-With the bundle extracted, every model is already present, so this evaluates
-rather than trains. Recorded cost across all five studies: **1.14 h**.
-
-**Figure 3 needs an NVIDIA GPU for this rung and the next.** All 380 of its
-records declare `cuda:0`, and the device is part of what a model *is* — it
-cannot be overridden by a tier or a flag. On a machine without one, `mbl run`
-refuses that document by design. Rungs 1 and 2 work on any host, Figure 3
-included: reading, analysing and redrawing never touch a device.
+Models already present are reused; only measurements are recomputed. Expect
+about an hour for Figure 1 on one GPU, and longer for Figure 3, whose plant is
+an order of magnitude larger.
 
 ## Rung 4 — retrain from the specifications
 
+The same command against an empty store retrains everything it cannot find:
+
 ```bash
-uv run mbl --store store run studies/icassp/fig1_depth.toml --tier publication_b16k
+uv run mbl --store fresh-store run studies/icassp_exact_convex/fig1_depth.toml --tier publication_b16k
 ```
 
-against an empty store. Recorded: **46.87 h** total — 30.3 h CPU and 16.5 h
-GPU, dominated by the unfolded family (22.1 h) and the convex policy (20.1 h).
+This is days of GPU time for the full set, and it is the only rung whose
+results will not be bit-identical to ours — training is not reproducible across
+different hardware, and the paper's claims are about aggregates over seeds
+rather than about individual weights.
 
-**Order does not matter.** Models are content-addressed, so whichever document
-trains a shared model first, every later document resolves the identical
-record; running the studies in any order costs the same total and changes no
-published number. If you want whole figures early rather than all of them
-partly done, run `fig1_depth` first.
+## Reading the notebook
 
-Use `--dry-run` to see what a run would do. It counts *points*, not distinct
-models, so it over-reports on an empty store; treat it as a plan, not a
-forecast.
+```bash
+uv run jupyter lab notebooks/icassp_exact_convex_reviewer.ipynb
+```
+
+It rebuilds every figure and table in the paper from the recorded results and
+runs in seconds. It trains nothing. Against a store that cannot answer, each
+cell hands you a refusal naming the command that would fill it, rather than a
+traceback.
 
 ## Running something of your own
 
-The studies are TOML and the vocabulary is small. To sweep a new depth range,
-copy `studies/icassp/fig1_depth.toml`, change the axis values, and run it at
-`smoke` first:
-
-```bash
-uv run mbl --store store run my_study.toml --tier smoke
-uv run mbl --store store analyse my_study.toml --tier smoke
-uv run mbl --store store figure render my_study.toml --tier smoke
-```
-
-`smoke` is the only tier permitted to subset a swept axis, which is why it is
-for wiring rather than for results. `uv run mbl --help` lists every command.
+A study document is the whole interface. Copy one, change what you want, and
+run it: a different plant, a different depth, a different contender set. The
+identifiers are derived from the document, so a changed document resolves to
+different records and cannot silently overwrite the paper's.

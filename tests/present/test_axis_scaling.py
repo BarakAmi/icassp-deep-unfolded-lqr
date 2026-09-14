@@ -344,6 +344,79 @@ class TestTheRunner:
         assert all(path.is_file() for path in outcomes[0].artifacts.paths)
         assert outcomes[0].profile == "thesis"
 
+    def _study_drawing_a_bound(self, tmp_path: Path):
+        """The same study, with its analysis declaring a box-aware floor.
+
+        The fixture plant is a real box-constrained instance, so the bound is
+        computed rather than stubbed.
+        """
+        import dataclasses
+
+        from mbl.analysis import run_analyses
+        from mbl.spec.analysis import AnalysisSpec
+
+        study, store = self._study_with_figure(tmp_path)
+        study = dataclasses.replace(
+            study,
+            analyses=(
+                AnalysisSpec(
+                    id="cost_by_depth",
+                    kind="cost_vs_axis",
+                    config={"bounds": ["finite_horizon_box"]},
+                ),
+            ),
+        )
+        run_analyses(study, store=store)
+        return study, store
+
+    def test_a_study_with_no_bounds_carries_no_bound_names(
+        self, tmp_path: Path
+    ) -> None:
+        """The spec says what this figure draws, and nothing else.
+
+        The first version seeded every spec with the whole bound registry, so a
+        study drawing no bound still carried two entries about nothing.
+        `test_display_names.py` caught it by asserting the mapping exactly,
+        which is the assertion worth keeping.
+        """
+        from mbl.analysis.bounds import BOUND_DISPLAY
+
+        study, store = self._study_with_figure(tmp_path)
+        render_figures(study, store=store)
+
+        directory = store / "studies" / str(study.study_id) / "figures"
+        spec = json.loads((directory / "fig_cost_vs_depth.spec.json").read_text())
+        assert not set(spec["display_names"]) & set(BOUND_DISPLAY)
+
+    def test_the_stored_spec_carries_the_bound_names_too(self, tmp_path: Path) -> None:
+        """A bound has no `display` of its own, and the spec is what a rebuild reads.
+
+        Both were true and both were needed: the live render learned the bound
+        names and `<id>.spec.json` did not, because the two were separate
+        comprehensions over the contenders. A rebuild then put the registry key
+        back into the legend of a figure that had just been fixed. Asserted on
+        the WRITTEN spec rather than on the function, because the spec is the
+        artifact a reviewer re-renders from.
+        """
+        from mbl.analysis.bounds import BOUND_DISPLAY
+
+        study, store = self._study_drawing_a_bound(tmp_path)
+        render_figures(study, store=store)
+
+        directory = store / "studies" / str(study.study_id) / "figures"
+        spec = json.loads((directory / "fig_cost_vs_depth.spec.json").read_text())
+        assert (
+            spec["display_names"].get("finite_horizon_box")
+            == (BOUND_DISPLAY["finite_horizon_box"])
+        ), "a rebuild would draw the bound as its own registry key"
+        # ...and the contenders are still there, which the "bounds first" order
+        # is what protects: a study may name a contender after a bound.
+        for contender in study.contenders:
+            assert (
+                spec["display_names"][contender.resolved_label]
+                == contender.resolved_display
+            )
+
     def test_the_stored_spec_records_the_profile_without_pinning_it(
         self, tmp_path: Path
     ) -> None:

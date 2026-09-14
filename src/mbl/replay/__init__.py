@@ -31,6 +31,7 @@ from __future__ import annotations
 from .errors import GateFailedError, StoreIncompleteError, UnknownArtifactError
 from .loading import DEFAULT_TIER, LAUNCHER, LoadedStudy, load_study
 from .rendering import (
+    render_composed_figure,
     render_figure,
     render_gates,
     render_problem,
@@ -50,6 +51,7 @@ __all__ = [
     "StoreIncompleteError",
     "UnknownArtifactError",
     "load_study",
+    "render_composed_figure",
     "render_figure",
     "render_gates",
     "render_problem",

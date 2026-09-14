@@ -8,6 +8,8 @@ not be. **A number the paper rests on belongs in a tracked document**, and this
 is that document. Regenerate it with `tools/emit_cost_grid_table.py`; the
 `.tex` below is what the paper pastes.
 
+**The emitter is campaign tooling and an artifact repository need not carry it.** This document ships in more than one of them; where `tools/emit_cost_grid_table.py` is absent, the table below is still the measurement, and it is what the paper pastes.
+
 Everything here is measured at **J = 3** — the depth the paper operates at, and
 the depth Figure 2 runs. Measuring it at another depth would misreport the
 unrolled families by roughly the ratio of the depths, since their per-step cost

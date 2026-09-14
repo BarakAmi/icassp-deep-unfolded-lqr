@@ -1,0 +1,490 @@
+# THE STRESS TEST -- `icassp_exact_convex`, era 06, the paper's FIGURE 5.
+#
+# `fig3_large_depth.toml` with THREE edits and no others: the plant's box, the
+# study's own identifier, and the ids of the analysis and figure it declares.
+# Everything else -- the cast, the roles, the display names, the depth axis, the
+# step literals, the gates, the substrate, the tier overlay, the recurrent
+# baseline's width and rate, and both distributions -- is byte-for-byte what
+# Figure 3 declares. THE ONLY DECLARED QUANTITY THAT MOVES IS THE BOX.
+#
+# FIGURE 3 IS NOT TOUCHED. Its study, its models, its measurements and its
+# rendered artifact stand exactly as they are; this is a new figure at a fifth
+# instance, and where both exist the older one is the record of what was run.
+#
+# WHY 0.02. On the frozen n = 100 plant the campaign's box binds on 32.3 % of
+# scalar control entries, where the n = 4 instance the paper is built on binds
+# on 88.6 %. At u_max = 0.02 this instance binds on 89.6 %, and what that buys
+# was measured before it was chosen: the advantage of a box-aware controller
+# over the clipped baseline rises from +5.6 % to +30.9 %, and the room a learned
+# preconditioner has over learning the step alone rises from +0.38 % to +14.8 %.
+# The claim the paper makes is currently invisible on its own large instance.
+#
+# WHAT IT COSTS, ALSO MEASURED. The depth axis is shorter here -- the proposed
+# family keeps 41 % of the J = 1 -> 10 improvement it has at u_max = 0.1 -- and
+# both headline margins narrow: over the recurrent baseline from +3.43 % to
+# +0.48 %, and over an untrained seven-second convex policy from 0.97 % to
+# 0.07 %. The author's ruling is that these are properties of the REGIME rather
+# than defects of the figure: at 89.6 % saturation every method converges toward
+# the constrained optimum, and reporting that is worth more than a wide margin
+# on a problem where the constraint barely acts.
+#
+# THE PLANT DIFFERS IN THE BOX AND IN NOTHING ELSE, which is asserted rather
+# than intended: `tests/spec/test_stress_box_plant.py` requires A, B, Q and R
+# bit-identical to Figure 3's, the two problems to sign differently, and
+# L = 1386.686968045241 to the last bit. That is what lets the two step literals
+# below stand unedited and the `step_is_inverse_lipschitz` gate keep passing.
+#
+# NOTHING REUSES. `control_bound` is content, so the new ProblemID moves every
+# ModelID derived from it: the dry run must report 225 points, 160 trained and
+# ZERO reused, and any reuse at all means the plant did not actually move.
+#
+# THE RECURRENT BASELINE KEEPS WIDTH 128, re-audited at this box before the
+# decision: quadrupling the width buys 0.23 % with collapsing increments, every
+# variant peaks at epoch 432 of 500, lr 3e-3 destabilises and an LSTM is
+# marginally worse. It is at four ceilings at once and is not capacity-limited.
+# The counter-datum belongs in the paper's fairness paragraph rather than in a
+# comment: the campaign's own five-seed width ablation at u_max = 0.1 puts the
+# optimum at 256, so this baseline runs 0.8 % off its own optimum there.
+#
+# The plan is
+# `docs/planning/06_icassp_exact_convex/figure_five_stress_test/binding_box_stress_test_at_n100.md`.
+
+id = "icassp_exact_convex/fig5_stress_depth"
+
+[problem]
+# The same plant file, not a copy -- `ProblemID` is content-derived.
+path = "../icassp/icassp_n100m30_N100_u0p02_s0.npz"
+
+[compute]
+backend = "torch"
+device = "cuda"
+precision = "float32"
+
+[training]
+seeds = [0]
+
+[training.data]
+kind = "gaussian"
+seed = 0
+process_noise_std = 0.5
+initial_state_std = 0.5
+
+[training.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.01
+epochs = 500
+
+[training.batch]
+effective_size = 8192
+
+[evaluation]
+metrics = ["expected_cost"]
+
+[evaluation.protocol]
+_build = "protocol"
+n_batches = 8
+
+[evaluation.protocol.batch_spec]
+_build = "gaussian"
+batch_size = 4096
+seed = 0
+process_noise_std = 0.5
+initial_state_std = 0.5
+
+# -- the contenders --------------------------------------------------------
+
+[[contenders]]
+label = "riccati_unconstrained"
+display = 'Riccati (unconstrained)'
+family = "riccati"
+role = "reference"
+
+[contenders.config]
+horizon = 100
+
+[[contenders]]
+label = "truncated_riccati"
+display = 'Truncated-Riccati'
+family = "truncated_riccati"
+role = "baseline"
+
+[contenders.config]
+horizon = 100
+
+# THE ANALYTIC BASELINE RUNS AT 2/L HERE, NOT AT 1/(2L), and the step was
+# chosen by its own ablation rather than by the campaign's law -- the author's
+# ruling of 2026-08-12, taken on the measurement below.
+#
+# `pgd_step_ablation_n100.toml` swept five fixed steps, exact binary scalings of
+# this plant's own 1/L, over J = 1..10 (mean cost):
+#
+#   step      J=1     J=2     J=3     J=5    J=10
+#   1/(2L)  114.68   88.34   77.81   69.10   63.19   <- the declared law
+#   1/L      84.30   71.00   66.34   62.97   61.21
+#   2/L      73.44   65.98   63.36   61.72   60.98   <- best at EVERY depth
+#   4/L      82.40  120.59  112.63  137.76  197.82   <- oscillating
+#   8/L      92.79  191.33  156.39  186.19  277.55   <- oscillating harder
+#
+# 2/L is the classical stability limit itself, and past it the iteration does
+# what theory says: alternating even/odd depths with growing amplitude. The
+# author's first instinct was "about an order of magnitude up", which lands
+# between the 4/L and 8/L rows -- the sweep is what caught that, and it is the
+# same failure the campaign already has on record (a literal 0.05 sitting
+# 5-24x above 2/L on the small plants, limit-cycling while the box hid it).
+#
+# WHY THIS MAKES THE FIGURE'S CLAIM STRONGER RATHER THAN WEAKER. At 2/L the
+# analytic baseline reaches 60.98 and now BEATS both the recurrent baseline
+# (62.17) and truncated-Riccati (64.17); the proposed controller's margin over
+# it shrinks from 3.07 to 0.86. That is the honest picture and it is worth
+# more: the unfolded families still win against a baseline whose step was
+# selected by sweep, while THEIR OWN initial step was not chosen with any care
+# at all -- it is the campaign's law, 1/(2L), and they learn away from it.
+# UF-alpha on this plant learns its way to about 4.5x that init, i.e. it
+# discovers 2/L unaided. The unfolded families are therefore NOT re-initialised
+# to match (150 trainings, ~4.7 h, deliberately not spent): a learned family
+# that finds the right step from a conservative start is a result, and
+# equalising the initialisation would hide it.
+#
+# THE STEP GATE NO LONGER COVERS THIS CONTENDER, and that is a real loss of
+# checking recorded rather than buried. `fraction` is ONE value per document
+# (Annex 01 §4) and two gates of one kind are a declaration error, so a cast
+# holding 2/L here and 1/(2L) on the three unfolded families cannot gate both.
+# The gate keeps the three -- one ungated literal rather than three -- and this
+# one is checkable by hand instead: 0.0014422865766304293 is exactly 4x
+# 0.0003605716441576073, the literal the gate DOES check on this plant, and
+# scaling by a power of two is exact in binary64.
+[[contenders]]
+label = "standard_pgd"
+display = 'Standard-PGD ($2/L$)'
+family = "unfolded_fixed"
+role = "baseline"
+
+[contenders.config]
+num_iterations = 1
+step_size_init = 0.0014422865766304293
+step_size_max = 1.0
+horizon = 100
+init_method = "cold"
+
+# THE LEARNING RATE IS SELECTED, NOT INHERITED (2026-09-03).
+#
+# Every unfolded family here ran at lr = 0.05 until a probe swept
+# {0.05, 0.01, 0.002} for all three at J = 10, 5 seeds, this instance,
+# everything else held. Each arm's lr = 0.05 control reproduced the tracked
+# record bit-for-bit, so the comparison is against this study and not across
+# tiers. Evaluated cost:
+#
+#   family      lr=0.05     lr=0.01    lr=0.002   gain from selecting
+#   UF-alpha   133.2149   131.2622    132.6624   1.9527
+#   UF-alphaP  114.3096   114.2284    114.3646   0.0812
+#   UF-alphaPj 114.2878   114.2289    114.3479   0.0589
+#
+# All three select 0.01. **Only this contender is moved**, and the deviation
+# is recorded rather than hidden: for the two P families the selection is
+# worth <= 0.08 on a figure spanning ~20 units, invisible, and the 11.5 h of
+# retraining buys nothing a reader could see. The asymmetry runs the safe
+# way -- the ABLATION gets its best rate while the proposed method keeps the
+# published one, which makes this study's central claim harder to show, not
+# easier. It survives: UF-alpha's deficit against the best P family moves
+# from +16.54 % to +14.91 %.
+#
+# WHAT THIS CORRECTS. At lr = 0.05 this contender's across-seed spread was
+# 1.0914 and its training loss was still RISING at epoch 500 (+0.0021/epoch);
+# at lr = 0.01 the spread is 0.0052, a 210x collapse. The instability this
+# study reported was an optimizer artifact, not a property of learning a
+# step alone. What survives measurement is sharper: UF-alpha gains 24x more
+# from selecting its rate than UF-alphaP does, and is still ~15 % worse.
+#
+# The mechanism, measured at a shared alpha before any optimizer acts: the
+# objective flattens in alpha by 1114x between J = 1 and J = 10 as saturation
+# rises 33.5 % -> 83.6 %. Adam normalises by gradient RMS, so on a flat noisy
+# objective it keeps taking full-size steps that are increasingly noise-driven.
+# See tools/probes/learning_rate_sensitivity.py and alpha_identifiability.py.
+[[contenders]]
+label = "unfolded_alpha"
+display = 'UF-$\alpha$ (learned steps)'
+family = "unfolded"
+
+[contenders.config]
+kind = "learned_step_size"
+num_iterations = 1
+step_size_init = 0.0003605716441576073
+step_size_max = 1.0
+horizon = 100
+init_method = "cold"
+
+[contenders.config.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.01
+epochs = 500
+
+[[contenders]]
+label = "unfolded_alpha_p"
+display = 'UF-$\alpha$P (proposed)'
+family = "unfolded"
+
+[contenders.config]
+kind = "learned_step_size_and_matrix"
+num_iterations = 1
+step_size_init = 0.0003605716441576073
+step_size_max = 1.0
+horizon = 100
+init_method = "cold"
+
+[contenders.config.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.05
+epochs = 500
+
+[[contenders]]
+label = "unfolded_alpha_pj"
+display = 'UF-$\alpha$P$^{(j)}$ (per-iteration P)'
+family = "unfolded"
+
+[contenders.config]
+kind = "learned_step_size_and_per_iteration_matrix"
+num_iterations = 1
+step_size_init = 0.0003605716441576073
+step_size_max = 1.0
+horizon = 100
+init_method = "cold"
+
+[contenders.config.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.05
+epochs = 500
+
+# THE THREE SETTINGS BELOW ARE MEASURED ON THIS PLANT, not carried from n = 4,
+# and the ablations that fixed them are recorded in the methodology document's
+# section 5.1. The incumbent declaration -- width 64, rate 0.02 -- was BOTH past
+# the stability edge and below the capacity threshold here: at 0.02 all five
+# seeds reach their best loss by epoch 4 and end 2.6x worse, and at width 64
+# even the settled rate fails to converge within 500 epochs (five seeds spread
+# over 134-302, one of them rising after epoch 305). Trained as declared here
+# the baseline attains 62.166 +- 0.354 against Truncated-Riccati's 64.166,
+# where the incumbent declaration attains 883.49 +- 377.80. Publishing this
+# figure with the old three lines would have drawn a straw man on the one plant
+# where the paper's claim is largest.
+[[contenders]]
+label = "neural"
+display = 'GRU'
+family = "neural"
+
+[contenders.config]
+hidden_dim = 128
+model_type = "GRU"
+
+[contenders.config.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.001
+epochs = 500
+
+# THE TWO CONTENDERS THIS FIGURE HAS NEVER HAD, and could not have at any price.
+#
+# The ICASSP version draws seven curves. The convex policy was excluded by the
+# declared-solver contract -- an exclusion since shown to rest on the REFERENCE's
+# error, not the candidate's -- and would have been excluded on cost anyway, at
+# roughly five days per seed. Its frozen sibling was excluded by a 4.9-hour
+# semidefinite synthesis that came back flagged inaccurate and whose reported
+# value sits above the optimum it claimed to bound.
+#
+# Both are now affordable and both are certified. The QP is solved as the
+# box-QP it is (7.2 ms -> 3.4 us per solve) and the bound as the Lagrangian dual
+# it is (4.9 h -> 6.3 s). NEITHER HAS A CONTROL TO BE MEASURED AGAINST: at this
+# instance there is no ICASSP result for them, which is what makes this figure
+# the campaign's genuinely new one rather than an A/B.
+#
+# They inherit this document's substrate -- CUDA, float32 -- like every other
+# contender here, because `compute` is per-study content and a mixed-substrate
+# figure compares two things at once.
+[[contenders]]
+label = "cocp_exact"
+# `display` is what a READER is shown and takes no part in any identifier
+# (Annex 01 2.2.1) -- measured before this edit and after it: both StudyIDs and
+# all 450 ModelIDs are unchanged.
+#
+# It read 'COCP (exact)' until 2026-09-06. "(exact)" was OUR marker, separating
+# this contender from the cvxpylayers-backed `cocp` of the ICASSP campaign that
+# it replaces. A reader of the paper has not been on that journey and does not
+# need to be: they are shown one convex policy, and how it is solved is the
+# paper's subject rather than a parenthesis in a legend. The campaign
+# distinction survives where it belongs -- in `label`, which is the joining
+# key, and in the methods documents.
+display = 'COCP'
+family = "cocp_exact"
+
+[contenders.config]
+use_linear_term = false
+
+[contenders.config.plan]
+_build = "end_to_end"
+optimizer = "adam"
+learning_rate = 0.1
+epochs = 100
+
+[[contenders]]
+label = "cocp_exact_lower_bound"
+display = 'Dual-frozen policy'
+family = "cocp_exact_lower_bound"
+# BASELINE, not bound (Annex 01 §2.2, corrected 2026-08-20). This is a real,
+# feasible, box-respecting policy: its ATTAINED cost is an upper bound on the
+# constrained optimum, and `role = "bound"` on it is verbatim the error the role
+# exists to prevent -- "an upper bound presented as a floor because its
+# identifier said lower_bound". The ICASSP document keeps its own declaration.
+role = "baseline"
+
+[contenders.config]
+process_noise_std = 0.5
+use_linear_term = false
+
+# -- what varies -----------------------------------------------------------
+
+[[sweep]]
+path = "contenders.*.config.num_iterations"
+values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+applies_to = ["standard_pgd", "unfolded_alpha", "unfolded_alpha_p", "unfolded_alpha_pj"]
+
+# -- what must hold --------------------------------------------------------
+
+# CORRECTED 2026-08-22. This comment arrived from Figure 3's document with the
+# three declared edits and said "the probe's own yardstick reads THIS INSTANCE
+# at 32.4 % saturated control entries". 32.4 % is the LOOSE box's reading. At
+# `u_max = 0.02` the clipped loop reads 89.65 % and the recurrent baseline
+# 94.25 %, and the figure exists because of the difference.
+#
+# The rest of the old comment -- "the real gate rides the real run" -- was
+# aspirational and is now true: the constraint-activity statistic is retained
+# content (Annex 03 §A.3.1a) and this gate is decided post-hoc over the
+# study's own measurements, at a saturation tolerance of 1e-3.
+#
+# `min_fraction` STAYS AT 0.01 and is not raised to match what was measured.
+# A gate's config is signed into `StudyID`: raising it would move this study
+# from 2411f52d69c72963 and orphan all 225 stored models, to state more
+# strictly a claim the audit beside the figure already reports exactly.
+[[gates]]
+kind = "constraint_binds"
+min_fraction = 0.01
+
+# `standard_pgd` left this list on 2026-08-12 when its step moved to 2/L: one
+# `fraction` per document cannot check 2.0 and 0.5 at once, and keeping the
+# three unfolded families gated is one ungated literal instead of three. The
+# contender the gate was originally written for is the one it no longer covers,
+# which is stated in that contender's own block rather than left to be noticed.
+[[gates]]
+kind = "step_is_inverse_lipschitz"
+contenders = ["unfolded_alpha", "unfolded_alpha_p", "unfolded_alpha_pj"]
+fraction = 0.5
+
+# -- what is computed from the results -------------------------------------
+
+[[analyses]]
+id = "cost_by_depth_stress"
+# THE FLOOR THIS FIGURE MAY ACTUALLY DRAW. Figure 1 of the ICASSP campaign
+# records omitting the box-aware bound because the one available is an
+# infinite-horizon steady-state average while this figure draws a
+# finite-horizon time-average -- "plotting it beside these numbers would
+# bracket the truth with two different quantities", left as that plan's open
+# decision. Computing the floor in the EVALUATED convention closes it. The
+# value is derived from this study's own problem and evaluation batch, never
+# authored, and its KKT residual travels with it in the sidecar.
+bounds = ["finite_horizon_box"]
+kind = "cost_vs_axis"
+axis = "contenders.*.config.num_iterations"
+aggregate = "mean"
+
+# The figure id carries `_exact`: `present.runner._locate` REFUSES a
+# figure id held by two studies, and the ICASSP campaign already owns
+# the unsuffixed name. Two campaigns, two figures, two names -- the
+# ICASSP artifact is neither overwritten nor made ambiguous.
+[[figures]]
+id = "fig5_stress_cost_vs_depth"
+kind = "axis_scaling"
+source = "cost_by_depth_stress"
+xlabel = "unrolling depth $J$"
+ylabel = "expected cost"
+title = "Cost against unrolling depth, n = 100, u_max = 0.02"
+dispersion = "none"
+
+# FOUR BREAKS, FIVE PANELS -- authored 2026-08-22 off THIS study's own
+# publication rung, not off the probe that predicted them.
+#
+# Merged over the drawn INTERVALS -- not the aggregates -- the 46 marks leave
+# four empty bands: 44.212, 14.568, 16.970 and 14.196 units wide. The two
+# clusters that carry the whole comparison occupy 0.658 and 4.827 units of a
+# 95.43-unit range: NINETY-FOUR PER CENT OF THE AXIS IS EMPTY, against the two
+# breaks Figure 3 needed.
+#
+# THE INTERVALS ARE THE POINT, and computing the bands from the aggregates
+# alone got this wrong once. UF-alpha at J = 9 carries an across-seed spread of
+# 2.678 -- the only material spread anywhere in this figure -- so its mark sits
+# at 134.568 while its interval reaches 136.665, and a break authored at 136
+# would have hidden it. The renderer refused by name and by value, which is
+# exactly the guarantee that makes authoring these literals safe.
+#
+# THE PROBE'S PROVISIONAL RANGES MOVED, exactly where it warned they would.
+# The third band was predicted at 119.6 -> 132.2 from a 50-epoch rung; at 500
+# epochs the recurrent baseline converges from 133.34 to 114.83 and crosses
+# INTO the main cluster, so the band is 114.826 -> 131.905 and the break with
+# it. The bands survived; their contents did not.
+ybreak = [[58.0, 97.0], [101.5, 112.5], [117.0, 130.0], [138.0, 149.0]]
+
+# One entry per panel, TOP FIRST: the clipped level, the alpha-only cluster,
+# the main cluster, the floor level, the reference level. The three level-only
+# panels declare 1.0 because their height is a floor rather than a share and
+# any other value is refused as inert.
+#
+# The alpha-only cluster is held to 0.06 against the main cluster's 1.0, and
+# that is a deliberate inversion of proportionality: it spans 4.827 units to
+# the main cluster's 0.658, so proportional heights would spend 88 % of the
+# ranged canvas on the two contenders the figure is NOT about -- and most of
+# that width is one contender's seed spread. Weighted, the main cluster takes
+# about 69 %, and it is where every box-aware contender, both convex policies
+# and the recurrent baseline live, separated by two thirds of a unit.
+ypanel_weights = [1.0, 0.06, 1.0, 1.0, 1.0]
+
+[figures.table]
+columns = [
+    "contender",
+    "axis_value",
+    "aggregate",
+    "across_seed_spread",
+    "n_seeds",
+    "per_seed_aggregate",
+]
+caption = "Mean cost by unrolling depth on the n = 100 instance at u_max = 0.02."
+
+[figures.table.precision]
+default = 4
+axis_value = 0
+n_seeds = 0
+
+# -- per-study tier overlay ------------------------------------------------
+#
+# The campaign's declared instance is 100 epochs; the catalogue's publication
+# tiers write the authoring default 200. BOTH publication tiers are pinned BY
+# NAME -- the overlay-escape lesson of 2026-08-09 (fig1's first b16k launch
+# silently trained double).
+
+# THE BUDGET IS 500 AND IT APPLIES TO EVERY LEARNED FAMILY HERE, the unfolded
+# ones included. It was measured on the recurrent baseline -- a 1000-epoch run
+# at this plant puts epoch 500 within 0.6 % of the converged value while epoch
+# 100 is 22 % above it -- and the author's judgement is that a state 25 times
+# larger than the small instance is unlikely to leave the unrolled families
+# converged at a budget that demonstrably truncates the recurrent one. Whether
+# the unfolded families actually needed it is answerable from the stored curves
+# this run writes: if their loss has stopped moving well before epoch 500, the
+# extra budget cost time and changed nothing, and that is worth reporting too.
+#
+[tier_overrides.publication]
+"contenders.*.config.plan.epochs" = 500
+
+[tier_overrides.publication_b16k]
+"contenders.*.config.plan.epochs" = 500
+
+[tier_overrides.smoke]
+"contenders.*.config.plan.epochs" = 3

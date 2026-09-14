@@ -5,6 +5,15 @@ prose**. Every claim here is measured on the tracked studies rather than reasone
 one exists because getting it wrong would let a reader — or a reviewer — draw a conclusion the
 experiment does not support.
 
+> **Which paper each section serves.** This document was written for the ICASSP campaign and
+> now serves two papers, because the exact-convex version reuses the campaign's protocol
+> wholesale. **§§1–8 and §10 apply unchanged to both.** §9 is Figure 2, shared. **§11 is the
+> ICASSP paper's dimension-scaling figure, which the exact-convex paper does not print.** §12's
+> grid is Figure 4 of one and an unnumbered table in the other. **§13 is the exact-convex
+> paper's Figure 3 and belongs to it alone.** Where a section's cast differs between the two —
+> §7's bounds most of all — the difference is stated in the section rather than left to a
+> reader to notice.
+
 > **Transcription rule.** The notebook's markdown carries **zero code references**: no function
 > names, no file paths, no field names, no identifiers. That is a standing rule for every
 > notebook in this project, recorded twice after being broken twice. This document names
@@ -378,7 +387,14 @@ so none is a hand-typed number — one seed, since the family trains nothing and
 
 **2/L is best at every depth, and past it the iteration does exactly what theory says**: 4/L and
 8/L alternate between even and odd depths with growing amplitude — the classical divergence,
-visible because the sweep brackets the limit instead of stopping at it. Figure 3 adopts 2/L.
+visible because the sweep brackets the limit instead of stopping at it.
+
+**Where each declared step actually landed**, read out of the documents rather than inferred:
+the **n = 100** analytic baseline adopts the swept **2/L**, which is what its legend says; the
+**n = 4** baseline is at **1/(2L)**, where the sweep was not run and the campaign's law stands.
+Every unfolded family in both figures initialises at **1/(2L)** — see the paragraph above on why
+they are left there. So the analytic baseline is given the swept optimum at the instance where
+the sweep exists, and matches the learners' initialisation where it does not.
 
 *Why a sweep and not one larger step.* The proposal on the table was a single arm "about an order
 of magnitude" up, which lands between the 4/L and 8/L rows. It would have measured a controller
@@ -400,6 +416,23 @@ sit at or above 2/L — in the region where a *fixed* step provably oscillates. 
 trained for a finite $J$, with the projection bounding its iterates, can exploit steps a
 fixed-step method cannot safely use. That is a mechanism, and the sweep is what turns it from a
 hypothesis into a measurement.
+
+**A fifth selection, made later and for the same reason (2026-09-03).** At the binding box of
+§13 every unfolded family had inherited one learning rate, and nothing had asked whether it
+suited them. Swept over {0.05, 0.01, 0.002} at the deepest configuration, five seeds, everything
+else held — and with each arm's incumbent rate reproducing the tracked value **bit-for-bit**, so
+the comparison sits inside the study rather than across tiers — the step-only family moves from
+133.21 to **131.26** and its across-seed spread collapses **210×**, from 1.09 to 0.005. The two
+matrix-learning families gain ≤ 0.08 from the same sweep and were therefore left at the
+published rate.
+
+**That asymmetry is the finding, and the honest way to report it cuts against us**: the ablation
+is given its best rate while the proposed method keeps its old one, and the architectural margin
+is quoted from there. Two further conventions the paper should state: the rate was selected at
+the deepest configuration and applied across the whole depth axis, so at `J = 1` and `J = 2` the
+retired rate was better by 0.06 and 0.52; and **an earlier version of this campaign's records
+called the step-only family "unstable" at this box**, which was our optimiser and not the
+architecture. The claim that survives is narrower and better founded.
 
 **How to read this collection.** Four families, four independently chosen step sizes spanning
 0.001 to 0.1 — a factor of a hundred — every one selected by a sweep at the budget its figure is
@@ -462,6 +495,7 @@ explicitly rather than rely on labels.
 | SDP-frozen convex policy | **upper** — an attained, feasible policy |
 | convex-optimisation policy (trained) | **upper** |
 | clipped Riccati policy | **upper** |
+| box-aware **finite-horizon** floor | **lower**, and in the plotted convention — see below |
 
 **The SDP-frozen policy is not a lower bound on anything**, despite a name that suggests it. It is
 the same one-step convex policy with its cost-to-go frozen at the semidefinite relaxation's
@@ -470,8 +504,18 @@ convex policy attaining a *lower* cost than it is the expected direction: a trai
 beating a frozen one. **The paper should not print the misleading name**; something like
 "convex policy (SDP-frozen)" says what it is.
 
-**The units warning, which is the one that could put a false claim on a figure.** The box-aware
-semidefinite floor is an *infinite-horizon steady-state* average cost. The figures plot a
+**The finite-horizon floor closes the units problem, and it is what the exact-convex figures
+draw (added 2026-08-20).** The paragraph below is why the ICASSP figures carry no box-aware
+floor at all: the only one available then was in the wrong convention. Computing the bound in
+the *evaluated* convention removes the objection, and the two are not interchangeable — at
+n = 100 they read 55.458 and 56.013, and **the infinite-horizon one sits above the unconstrained
+curve (55.430)**, so drawing it would have bracketed the figure with a floor above its own
+reference. Both conventions happen to sit below the best contender at n = 4, so either would
+*look* right; right by luck is not right. The ICASSP figures are unchanged and still carry no
+box-aware floor.
+
+**The units warning, which is why. It is the one that could put a false claim on a figure.** The
+box-aware semidefinite floor is an *infinite-horizon steady-state* average cost. The figures plot a
 *finite-horizon* time average from a random initial state. Those are different quantities: on the
 campaign's own instance the constrained loops have not reached steady state by the end of the
 horizon, and their running average only rises past that floor around a third of the way through.
@@ -785,7 +829,10 @@ learners at ≈0 blind, hurt when told). Every rung is measured, including the s
 proof that the same per-step program is helped by the news the moment it carries the true
 cost-to-go.
 
-## 11. The dimension scaling: what Figure 3 measures, and how to read it
+## 11. The dimension scaling: what the ICASSP paper's Figure 3 measures
+
+**This section belongs to the ICASSP paper alone.** The exact-convex paper does not print
+this figure; its own third figure is §13's binding box.
 
 **The plotted quantity is a ratio, and the floor is drawn at exactly 1.** Each contender's
 per-seed mean cost is divided by the unconstrained Riccati optimum's on the **same** plant,
@@ -830,7 +877,11 @@ the reduced-form research document
 * The recurrent baseline tracks the proposed controller closely and stays just behind it at
   nearly every n.
 
-## 12. The cost grid: what Figure 4 measures, and what its numbers mean
+## 12. The cost grid: what it measures, and what its numbers mean
+
+*The grid is Figure 4 of the ICASSP paper and an unnumbered table in the
+exact-convex one; this section describes the measurement, which is the
+same in both.*
 
 **Each controller is measured as though it had its own dedicated machine, one per phase.**
 Every {controller} × {offline, online} cell runs in a fresh process: no import, allocator or
@@ -929,7 +980,61 @@ per-step cost is essentially linear in J, so a cost table measured at a depth th
 not use would misreport it by that factor; this table was measured at J = 7 first, and
 correcting it to J = 3 changed the convex-policy ratios from 33× and 5× to 26× and 11.4×.
 
-## 13. Related
+## 13. The binding box: what the exact-convex paper's Figure 3 measures
+
+**This section belongs to the exact-convex paper alone.** The ICASSP paper does not print this
+figure, and its own third figure is §11's dimension scaling.
+
+**One declared scalar separates this instance from the campaign's n = 100 plant.** Same
+dynamics, same horizon, same seeds, same evaluation — `u_max` moves from 0.1 to 0.02, and
+nothing else. A new problem is a new `ProblemID`, so every controller here was retrained from
+scratch: there is no reuse in this figure at all, and that absence is the check rather than the
+cost. Any reuse would have meant the box did not move.
+
+**The constraint is active on 89.6 % of scalar control entries, against 32.3 % at the loose
+box** — both read along the clipped loop at the same 1e-6 tolerance, so the two are comparable.
+That is what makes it a stress test: at the loose box the constraint is mostly slack and the
+problem is nearly the unconstrained one.
+
+**The feasibility of every contender is measured, not asserted.** At a box this tight
+`max|u| − u_max` stops being a formality. Every feasible contender reads **−4.470e-10**, which
+is not five measurements agreeing but `0.02 − float32(0.02)` exactly: each is pinned at the
+*representable* bound, so the margin is a property of the declared precision and not of any
+controller. The unconstrained reference reaches **30.6×** the box, which is what makes it a
+reference rather than a competitor.
+
+**Statements the caption should carry:**
+
+* **The margin over the recurrent baseline is +0.45 %, against +3.41 % at the loose box** — a
+  sevenfold narrowing, and it is a property of the regime rather than a defect of the figure.
+  At this saturation every method converges toward the constrained optimum. Reporting the
+  narrowing is worth more than a wide margin on a problem where the constraint barely acts.
+* **The exact convex policy wins**, by 0.067 % over the best unfolded family — 29× the larger
+  of the two across-seed dispersions, and therefore separable.
+* **Training still beats solving-and-freezing**, by 0.086–0.172 % against a policy that is
+  synthesised in 26 seconds and never trained. That margin is one to two orders of magnitude
+  larger than its own dispersion, which is what makes it a result rather than noise. It is also
+  much smaller here than at the loose box, and the paper should say so.
+* **Carrying a box-aware quadratic model is the figure's largest quantity** — +16.4 % over the
+  tuned fixed step, +14.8 % over learning the step alone, +32.0 % over clipping, while depth
+  over `J = 1..10` is worth 0.2 %. The separation is architectural, not about depth.
+* **Learning a step alone is the weakest contender and that is all it is.** See §5's fifth
+  selection: the instability once reported here was the optimiser.
+
+**A dispersion the cost curve cannot show.** Plotting across-seed spread *against depth*
+separates two things the error bars merge. The two preconditioned families are flat in depth,
+between 0.001 and 0.0036 at every `J`; the step-only family rises to 0.061 and stays 17× more
+dispersed. Carrying the quadratic model does not only lower the cost — it makes the training
+reproducible, and unlike the ablation that advantage does not decay with depth.
+
+**One caveat about the cost grid at this instance**, which §12's method requires and which this
+instance forced: a cell of a few tens of milliseconds cannot be measured on this host inside a
+long heterogeneous pass. Run as separate per-phase invocations the same cells agree to 3.27 %,
+where a mixed pass put 70 % between them. The fix was to shorten the pass, never to widen the
+gate — and the consequence is that this paper's grids are the median of 2 samples over 1 pass
+where the ICASSP grid is 10 over 5. **The medians compare; the quartiles do not.**
+
+## 14. Related
 
 * `../architecture/03_analysis_and_visual_standard.md`
   — the figure grammar these plots obey, including the broken-axis and margin-label rules.

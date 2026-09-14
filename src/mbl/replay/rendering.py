@@ -677,6 +677,97 @@ def render_figure(
     )
 
 
+def render_composed_figure(
+    parts: Sequence[Resolution],
+    figure_id: str,
+    *,
+    claim: str | None = None,
+    title: str | None = None,
+) -> str:
+    """One stored figure that no single study declares, with its caption.
+
+    A figure assembled from several studies belongs to none of them, so
+    `render_figure` cannot reach it: it looks the figure up among the ones its
+    study declares, and a composed figure is declared by nothing. The exact-
+    convex paper's Figure 2 is of this kind -- three mismatch conditions, one
+    panelled figure -- and leaving it unrenderable would have meant a paper
+    figure a reviewer cannot see.
+
+    **Addressed by what composes it, never by an identifier typed out.** The
+    composite id is derived here from the parts the caller resolved, which is
+    the same derivation the renderer used when it wrote the figure. So the
+    figure is found only if it was built from exactly these studies at exactly
+    these tiers; change any one of them and the address moves and this refuses,
+    rather than displaying a picture of something else.
+
+    Args:
+        parts: The resolved studies the figure is composed from, in any order.
+        figure_id: The composed figure's id.
+        claim: The scientific claim it supports, authored.
+        title: What to call it in the caption. Authored, because a composed
+            figure has no study to carry one -- a declared figure takes its
+            title from its own specification, and there is no such document
+            here. Defaults to `figure_id`, which reads as an identifier and is
+            the honest fallback rather than a good caption.
+
+    Returns:
+        The section, generated, with the image embedded rather than linked.
+
+    Raises:
+        UnknownArtifactError: If no such figure is stored for those parts,
+            naming what it looked for.
+    """
+    from ..store.ids import composite_study_id
+    from ..store.location import default_store
+    from ..store.study_artifacts import StudyArtifactStore
+    from .resolution import FIGURE_KEYS, _figure_artifacts
+
+    if not parts:
+        raise UnknownArtifactError(
+            f"figure {figure_id!r} is composed of nothing; pass the resolved "
+            "studies it is drawn from"
+        )
+    # Sorted for the REFUSAL's sake, not for the address: the composite
+    # identity sorts its own sources by contract, so this changes no id and
+    # survives its own mutant. What it buys is an error message that lists the
+    # parts in a stable order instead of in whatever order a caller passed.
+    composed = sorted(str(part.loaded.study.study_id) for part in parts)
+    study_id = str(composite_study_id(composed, kind=figure_id))
+    root = StudyArtifactStore(default_store()).figures_root(study_id)
+    artifacts = _figure_artifacts(root, figure_id)
+    if set(artifacts) != FIGURE_KEYS:
+        raise UnknownArtifactError(
+            f"no composed figure {figure_id!r} is stored for the studies "
+            f"{', '.join(composed)}. It would be filed under {study_id}, and "
+            "that is derived from the parts -- so a figure built from a "
+            "different set, or at a different tier, is a different figure and "
+            "not this one."
+        )
+    payload = base64.b64encode(artifacts[DISPLAY_SUFFIX].read_bytes()).decode("ascii")
+
+    import pandas as pd
+
+    table = pd.read_parquet(artifacts["data.parquet"])
+    seeds = _span(table["n_seeds"])
+    trajectories = _span(table["n_trajectories"])
+    caption = [
+        f"**Figure — {title or figure_id}.**",
+        *([claim] if claim else []),
+        f"{len(table)} plotted point(s) over "
+        f"{len(set(table['contender']))} contender(s); {seeds} training "
+        f"seed(s) and {trajectories} evaluation trajectories behind each "
+        "plotted point.",
+        f"Composed from {len(composed)} studies.",
+    ]
+    return "\n".join(
+        [
+            f"![{title or figure_id}](data:image/png;base64,{payload})",
+            "",
+            " ".join(caption),
+        ]
+    )
+
+
 #: Signature keys a distribution shares with the rest of §3's table, or that
 #: describe the shape rather than the law. Excluded so the row states what only
 #: it can state; `state_dim` and `horizon` in particular are the *problem's*,

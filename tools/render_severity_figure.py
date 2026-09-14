@@ -18,6 +18,12 @@ made, and the two places would eventually disagree.
 Panels run left to right in order of what the controller is given — nothing,
 the matrices, the data — because that ladder is the figure's argument.
 
+`--highlight` points leader arrows at one contender in every panel, defaulting
+to the proposed one, and `--highlight-at` chooses the positions. Seven curves at this scale resolve into a band, and a
+reader asked to find the proposal has to match legend entries against line
+styles; the arrow answers that directly. It is written into the spec, not drawn
+here, so a rebuild from the stored artifacts reproduces it.
+
 Usage::
 
     uv run python tools/render_severity_figure.py --style ieee-2col
@@ -77,8 +83,17 @@ ORDER: tuple[str, ...] = (
     "neural",
     "cocp",
 )
+#: What a READER is shown for each contender. This map is the THIRD home for a
+#: display name -- the study documents carry their own `display`, and
+#: `spec.json` carries a copy so `figure rebuild` keeps it -- and on 2026-09-14
+#: it was the one that disagreed: every other era-06 study displayed
+#: `truncated_riccati` as "Truncated-Riccati" while this composite alone said
+#: "Clipped-LQR", so the paper's Figure 2 named a contender differently from its
+#: Figures 1 and 3. Editing the study documents did NOT fix the figure, because
+#: this composite spans three studies and belongs to none of them, so it reads
+#: neither their `display` nor a stored spec. Keep this map in step with them.
 DISPLAY = {
-    "truncated_riccati": "Clipped-LQR",
+    "truncated_riccati": "Truncated-Riccati",
     "standard_pgd": "PGD",
     "unfolded_alpha": r"UF-$\alpha$",
     "unfolded_alpha_p": r"UF-$\alpha$P",
@@ -178,6 +193,30 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--highlight",
+        default="unfolded_alpha_p",
+        help=(
+            "contender to point at in every panel, with a leader arrow in its "
+            "own colour and linestyle and its display name at the tail. "
+            "Defaults to the proposed contender, which is the same one in both "
+            "campaigns. Pass an empty string to draw no arrow. It is written "
+            "into the SPEC rather than drawn here, because a stored figure is "
+            "rebuilt through the registry and an annotation added by a tool is "
+            "one a rebuild would silently drop"
+        ),
+    )
+    parser.add_argument(
+        "--highlight-at",
+        default="20,30,45",
+        help=(
+            "comma-separated axis positions to point at, one arrow each. The "
+            "default names the three angles at which the curves have separated "
+            "-- below 20 deg they lie within 0.3 of one another and an arrow "
+            "there points into the band rather than out of it. Empty falls "
+            "back to the single most-separated position"
+        ),
+    )
+    parser.add_argument(
         "--draw-spread",
         action="store_true",
         help="draw across-seed error bars. Off by default: only the recurrent "
@@ -197,6 +236,16 @@ def main() -> None:
     if unknown:
         parser.error(f"--rename names {unknown}, which are not in the series order")
     order = tuple(renames.get(label, label) for label in ORDER)
+    # The rename applies to the highlight too: a campaign that substitutes a
+    # contender would otherwise point at the label it replaced.
+    highlight = renames.get(arguments.highlight, arguments.highlight)
+    highlight_at = [
+        float(value) for value in arguments.highlight_at.split(",") if value.strip()
+    ]
+    if highlight and highlight not in order:
+        parser.error(
+            f"--highlight {highlight!r} is not one of the series drawn: {list(order)}"
+        )
     display = {renames.get(k, k): v for k, v in DISPLAY.items()}
     roles = {renames.get(k, k): v for k, v in ROLES.items()}
 
@@ -228,6 +277,8 @@ def main() -> None:
             "xlabel": r"rotation of $A$ [deg]",
             "ylabel": "expected cost",
             "draw_spread": bool(arguments.draw_spread),
+            "highlight": highlight,
+            "highlight_at": highlight_at,
         },
         "series_order": list(order),
         "roles": {label: role.value for label, role in roles.items()},

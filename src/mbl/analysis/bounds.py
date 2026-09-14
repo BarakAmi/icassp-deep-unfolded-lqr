@@ -65,6 +65,22 @@ BOUND_KINDS: Mapping[str, _BoundKind] = {
     "infinite_horizon_box": _infinite,
 }
 
+#: What a READER is shown for each bound. A contender carries its own `display`
+#: and a bound had none, so both figures that draw one printed the registry key
+#: -- `finite_horizon_box`, an identifier, in a paper's figure. The names live
+#: here rather than in the presentation tier so that adding a bound cannot
+#: forget to name it: `test_every_bound_has_a_reader_facing_name` asserts the
+#: two key sets are equal, which makes the omission structurally impossible
+#: rather than merely discouraged.
+#:
+#: **Identity-free, exactly as a contender's `display` is** (Annex 01 §2.2.1):
+#: renaming what a reader sees must not retrain anything or orphan a stored
+#: result. These strings are read at render time and enter no identifier.
+BOUND_DISPLAY: Mapping[str, str] = {
+    "finite_horizon_box": "Finite-horizon box bound",
+    "infinite_horizon_box": "Infinite-horizon box bound",
+}
+
 
 def _problem_data(study: StudySpec) -> tuple[BoxLQRData, int, float]:
     """The study's problem and evaluation convention, as a bound needs them.

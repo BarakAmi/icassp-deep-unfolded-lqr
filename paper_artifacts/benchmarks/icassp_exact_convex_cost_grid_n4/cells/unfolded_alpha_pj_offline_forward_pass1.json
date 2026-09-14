@@ -1,0 +1,30 @@
+{
+ "phase": "offline",
+ "contender": "unfolded_alpha_pj",
+ "seed": 0,
+ "study": "studies/icassp_exact_convex/fig1_depth.toml",
+ "tier": "publication_b16k",
+ "axis_filter": {
+  "contenders.*.config.num_iterations": 3
+ },
+ "bench_wall_s": 3.581080307951197,
+ "baseline_rss_bytes": 709521408,
+ "peak_rss_bytes": 2010791936,
+ "current_rss_bytes": 1672065024,
+ "kind": "trainable",
+ "declared_epochs": 200,
+ "bench_epochs": 5,
+ "per_epoch_s": [
+  0.7920626259874552,
+  0.48902978794649243,
+  0.4892277489416301,
+  0.45835057902149856,
+  0.49179963394999504
+ ],
+ "per_epoch_median_s": 0.4892277489416301,
+ "setup_s": 0.8606099321041256,
+ "full_training": false,
+ "extrapolated_total_s": 98.70615972043015,
+ "measured_total_s": null,
+ "offline_time_s": 98.70615972043015
+}

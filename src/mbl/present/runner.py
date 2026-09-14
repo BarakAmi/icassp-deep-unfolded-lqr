@@ -30,6 +30,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 
+from ..analysis.bounds import BOUND_DISPLAY
 from ..spec.contender import Role
 from ..spec.errors import SpecificationError
 from ..spec.figure import FigureSpec
@@ -96,9 +97,7 @@ def render_figures(
     study_id = str(study.study_id)
     roles = {spec.resolved_label: spec.role for spec in study.contenders}
     order = tuple(spec.resolved_label for spec in study.contenders)
-    display_names = {
-        spec.resolved_label: spec.resolved_display for spec in study.contenders
-    }
+    display_names = display_names_of(study)
 
     outcomes: list[FigureOutcome] = []
     for spec in selected:
@@ -143,6 +142,46 @@ def render_figures(
             )
         )
     return tuple(outcomes)
+
+
+def display_names_of(study: StudySpec) -> dict[str, str]:
+    """`label -> what a reader is shown`, for contenders AND for bounds.
+
+    **A bound is not a contender**, so it carries no `display` of its own, and
+    both depth figures printed `finite_horizon_box` — a registry key — into a
+    paper. The bound names come from `BOUND_DISPLAY`, beside the kinds they
+    name, and go in FIRST so a study that ever declared a contender by a
+    bound's name would still win.
+
+    **Only the bounds this study DECLARES.** Seeding with the whole registry
+    was the first version and it was wrong in a way a test caught: it wrote
+    names for bounds the figure cannot draw into every `<id>.spec.json`, so a
+    study with no bounds carried two entries about nothing. The spec should say
+    what a reader is shown for the things this figure draws.
+
+    One function because there are two readers: the live render and the
+    `<id>.spec.json` a rebuild works from. They were two comprehensions, and a
+    change that reached one of them left the other showing raw labels.
+
+    Args:
+        study: The resolved study whose contenders are being drawn.
+
+    Returns:
+        The mapping, freshly built so a caller may mutate it.
+    """
+    declared = {
+        kind
+        for analysis in study.analyses
+        for kind in analysis.config.get("bounds", ())
+    }
+    names = {kind: BOUND_DISPLAY[kind] for kind in declared if kind in BOUND_DISPLAY}
+    names.update(
+        {
+            contender.resolved_label: contender.resolved_display
+            for contender in study.contenders
+        }
+    )
+    return names
 
 
 def _selected(study: StudySpec, only: Sequence[str] | None) -> tuple[FigureSpec, ...]:
@@ -221,10 +260,14 @@ def _stored_spec(
         # Written here for the same reason `roles` is: `rebuild_figure` reads no
         # study document by design, so a display name resolved only at render
         # time would silently revert every rebuilt legend to raw labels.
-        "display_names": {
-            contender.resolved_label: contender.resolved_display
-            for contender in study.contenders
-        },
+        #
+        # From `display_names_of`, NOT a second comprehension over the
+        # contenders. It was the second copy, and when bounds gained names only
+        # the live render learned about them: the figure drew "Finite-horizon
+        # box bound" and the spec beside it still said nothing, so a rebuild
+        # put the registry key back. Two spellings of one mapping is the drift
+        # this repository has a gate for elsewhere.
+        "display_names": display_names_of(study),
         # §B.1.2: §A.4's declarations "live in the analysis's sidecar, while a
         # figure is required to be rebuildable with no analysis in reach — they
         # are therefore frozen into `<id>.spec.json` when the figure is

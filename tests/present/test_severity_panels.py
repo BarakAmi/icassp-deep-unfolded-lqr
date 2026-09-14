@@ -10,6 +10,7 @@ central test here is the round trip, not the drawing.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import matplotlib
 import pandas as pd
@@ -17,6 +18,7 @@ import pytest
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.patches import ArrowStyle  # noqa: E402
 
 from mbl.present.artifacts import write_figure_artifacts  # noqa: E402
 from mbl.present.profiles import profile_context, resolve_profile  # noqa: E402
@@ -252,3 +254,209 @@ class TestTheRefusals:
                     display_names=context.display_names,
                 )
             )
+
+
+class TestTheHighlightArrow:
+    """`highlight` points one series out of the band, in every panel.
+
+    The figure draws seven curves that overlap for most of the axis, and a
+    reader asked to find the proposed one has to match legend entries against
+    line styles. The arrows answer that -- but only if they survive a rebuild,
+    which is why they are config keys read by the renderer rather than
+    something a tool draws afterwards.
+
+    The label is a plain text and each arrow is an annotation with no text of
+    its own, so one label can serve several arrows.
+    """
+
+    @staticmethod
+    def _arrows(axis: Any) -> list[Any]:
+        """The annotations. A plain `Text` has no `arrow_patch` attribute at
+        all -- only `Annotation` does -- so this is a getattr and not a
+        dotted access."""
+        return [child for child in axis.texts if getattr(child, "arrow_patch", None)]
+
+    @staticmethod
+    def _labels(axis: Any, text: str) -> list[Any]:
+        return [
+            child
+            for child in axis.texts
+            if not getattr(child, "arrow_patch", None) and child.get_text() == text
+        ]
+
+    def test_every_panel_gets_a_label_and_one_arrow(self) -> None:
+        figure = severity_panels(_context(_table(), highlight="proposed"))
+        for axis in figure.axes:
+            assert len(self._labels(axis, DISPLAY["proposed"])) == 1
+            assert len(self._arrows(axis)) == 1, "no targets means one anchor"
+        plt.close(figure)
+
+    def test_one_arrow_per_declared_target(self) -> None:
+        """The author's request: three arrows, to three named positions."""
+        figure = severity_panels(
+            _context(_table(), highlight="proposed", highlight_at=[5.0, 20.0, 45.0])
+        )
+        for axis in figure.axes:
+            arrows = self._arrows(axis)
+            assert len(arrows) == 3
+            assert sorted(arrow.xy[0] for arrow in arrows) == [5.0, 20.0, 45.0]
+            assert len(self._labels(axis, DISPLAY["proposed"])) == 1, "one label"
+        plt.close(figure)
+
+    def test_an_arrow_starts_outside_the_label_it_leaves(self) -> None:
+        """The shaft must not cross its own text, in any direction.
+
+        `shrinkA` is measured in points from the annotation's anchor, and the
+        anchor is the CENTRE of a centred label -- so a single constant is
+        either too small sideways or absurd vertically. A label is far wider
+        than it is tall, and the author saw the consequence on the informed
+        panel: the arrow to 45 deg ran over the word it started from.
+
+        Asserted as a relation between the two directions rather than against a
+        number, because the number is a font metric and would re-baseline every
+        time the style did.
+        """
+        figure = severity_panels(
+            _context(_table(), highlight="proposed", highlight_at=[5.0, 20.0, 45.0])
+        )
+        figure.canvas.draw()
+        for axis in figure.axes:
+            label = self._labels(axis, DISPLAY["proposed"])[0]
+            box = label.get_window_extent(figure.canvas.get_renderer())
+            centre = axis.transAxes.transform(label.get_position())
+            for arrow in self._arrows(axis):
+                shrink = arrow.arrowprops["shrinkA"]
+                end = axis.transData.transform(arrow.xy)
+                dx, dy = end[0] - centre[0], end[1] - centre[1]
+                length = (dx * dx + dy * dy) ** 0.5
+                # Where the shaft begins, in display pixels.
+                start_x = centre[0] + dx / length * shrink * figure.dpi / 72.0
+                start_y = centre[1] + dy / length * shrink * figure.dpi / 72.0
+                assert not box.contains(start_x, start_y), (
+                    f"the shaft to {arrow.xy[0]} begins inside its own label"
+                )
+        plt.close(figure)
+
+    def test_no_highlight_means_no_arrows(self) -> None:
+        figure = severity_panels(_context(_table()))
+        for axis in figure.axes:
+            assert not self._arrows(axis)
+        plt.close(figure)
+
+    def test_the_arrow_wears_the_series_encoding(self) -> None:
+        """Same colour as the curve it points at -- the reader matches by eye."""
+        figure = severity_panels(_context(_table(), highlight="proposed"))
+        axis = figure.axes[0]
+        container = next(
+            c for c in axis.containers if c.get_label() == DISPLAY["proposed"]
+        )
+        drawn = container.lines[0]
+        expected = matplotlib.colors.to_rgb(drawn.get_color())
+        assert self._labels(axis, DISPLAY["proposed"])[0].get_color() == (
+            drawn.get_color()
+        )
+        patch = self._arrows(axis)[0].arrow_patch
+        assert matplotlib.colors.to_rgb(patch.get_edgecolor()[:3]) == expected
+        plt.close(figure)
+
+    def test_the_head_is_filled_rather_than_dashed(self) -> None:
+        """A dashed `->` head is dashed to its tip and stops reading as a head.
+
+        `-|>` draws a filled triangle, so the shaft can carry the series'
+        linestyle while the head stays solid.
+        """
+        figure = severity_panels(_context(_table(), highlight="proposed"))
+        for axis in figure.axes:
+            for arrow in self._arrows(axis):
+                style = arrow.arrow_patch.get_arrowstyle()
+                assert isinstance(style, ArrowStyle.CurveFilledB), (
+                    "the head must be a filled triangle (-|>), not the open "
+                    f"curve (->) that the linestyle dashes: got {type(style).__name__}"
+                )
+        plt.close(figure)
+
+    def test_the_label_and_every_arrow_stay_inside_the_panel(self) -> None:
+        """The third panel's label left the frame when it was placed by an
+        offset in points from a data anchor: where a curve sits says nothing
+        about how much room is left beyond it."""
+        figure = severity_panels(
+            _context(_table(), highlight="proposed", highlight_at=[5.0, 20.0, 45.0])
+        )
+        for axis in figure.axes:
+            label = self._labels(axis, DISPLAY["proposed"])[0]
+            fx, fy = label.get_position()
+            assert 0.0 < fx < 1.0 and 0.0 < fy < 1.0, "the label left the axes"
+            low, high = axis.get_ylim()
+            left, right = axis.get_xlim()
+            for arrow in self._arrows(axis):
+                x, y = arrow.xy
+                assert left <= x <= right and low <= y <= high
+        plt.close(figure)
+
+    def test_the_anchor_is_where_the_curve_is_most_separated(self) -> None:
+        """The fallback when no target is named -- not the middle position,
+        which is where the curves converge.
+
+        The table is built so that `proposed` sits on top of `baseline` at
+        every angle but the last, where it is far away. Anchoring by position
+        rather than by separation would point into the overlap.
+        """
+        table = _table()
+        overlap = table["contender"].isin(("baseline", "proposed"))
+        table.loc[overlap & (table["axis_label"] != "45"), "aggregate"] = 9.0
+        table.loc[
+            (table["contender"] == "proposed") & (table["axis_label"] == "45"),
+            "aggregate",
+        ] = 3.0
+        figure = severity_panels(_context(table, highlight="proposed"))
+        arrow = self._arrows(figure.axes[0])[0]
+        assert arrow.xy[0] == pytest.approx(45.0), (
+            "the arrow must land where the series separates, not at the middle"
+        )
+        plt.close(figure)
+
+    def test_a_highlight_that_is_not_drawn_is_refused(self) -> None:
+        with pytest.raises(SpecificationError, match="not one of the series"):
+            severity_panels(_context(_table(), highlight="nonexistent"))
+
+    def test_a_target_the_panel_never_measured_is_refused(self) -> None:
+        """An arrow to an angle nobody ran points at nothing."""
+        with pytest.raises(SpecificationError, match="did not"):
+            severity_panels(
+                _context(_table(), highlight="proposed", highlight_at=[33.0])
+            )
+
+    def test_the_arrows_survive_a_rebuild_from_the_artifacts(
+        self, tmp_path: Path
+    ) -> None:
+        """The defect this whole suite exists for, in its newest form.
+
+        Annotations added by the composing tool rather than by the renderer
+        would draw once and vanish the moment anyone reopened the figure.
+        """
+        table = _table()
+        context = _context(table, highlight="proposed", highlight_at=[20.0, 45.0])
+        profile = resolve_profile("ieee-2col")
+        with profile_context(profile):
+            figure = resolve_figure("severity_panels")(context)
+            write_figure_artifacts(
+                figure,
+                directory=tmp_path,
+                figure_id="severity",
+                table=table,
+                spec={
+                    "kind": "severity_panels",
+                    "config": dict(context.config),
+                    "series_order": list(ORDER),
+                    "roles": {"baseline": Role.BASELINE.value},
+                    "display_names": dict(DISPLAY),
+                },
+                profile=profile,
+            )
+        plt.close(figure)
+
+        rebuilt = figure_from_artifacts(tmp_path / "severity.spec.json")
+        for axis in rebuilt.axes:
+            assert len(self._arrows(axis)) == 2, "the rebuild dropped an arrow"
+            assert len(self._labels(axis, DISPLAY["proposed"])) == 1
+        plt.close(rebuilt)

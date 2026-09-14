@@ -1,0 +1,55 @@
+{
+  "composes": [
+    "291ed6a23e8f5c84",
+    "cd7ff5561af2bc98",
+    "e46c2b2475cb6548"
+  ],
+  "config": {
+    "draw_spread": false,
+    "highlight": "unfolded_alpha_p",
+    "highlight_at": [
+      20.0,
+      30.0,
+      45.0
+    ],
+    "panels": [
+      [
+        "cost_by_angle_blind_exact",
+        "train\u2013test mismatch\n(uninformed)"
+      ],
+      [
+        "cost_by_angle_told_exact",
+        "train\u2013test mismatch\n(informed)"
+      ],
+      [
+        "cost_by_angle_world_exact",
+        "model mismatch"
+      ]
+    ],
+    "xlabel": "rotation of $A$ [deg]",
+    "ylabel": "expected cost"
+  },
+  "display_names": {
+    "cocp_exact": "COCP",
+    "neural": "GRU",
+    "standard_pgd": "PGD",
+    "truncated_riccati": "Truncated-Riccati",
+    "unfolded_alpha": "UF-$\\alpha$",
+    "unfolded_alpha_p": "UF-$\\alpha$P",
+    "unfolded_alpha_pj": "UF-$\\alpha$P$^{(j)}$"
+  },
+  "kind": "severity_panels",
+  "roles": {
+    "standard_pgd": "baseline",
+    "truncated_riccati": "baseline"
+  },
+  "series_order": [
+    "truncated_riccati",
+    "standard_pgd",
+    "unfolded_alpha",
+    "unfolded_alpha_p",
+    "unfolded_alpha_pj",
+    "neural",
+    "cocp_exact"
+  ]
+}

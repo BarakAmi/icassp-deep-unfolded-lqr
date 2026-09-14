@@ -65,8 +65,14 @@ REPO = Path(__file__).resolve().parents[1]
 
 #: What a mutant needs a copy of. `studies/` and `notebooks/` are in it because
 #: the baseline failed without them: tests load real study documents, and a
-#: tree that cannot find them fails for reasons no mutant caused.
-MANIFEST = ("src", "tests", "studies", "notebooks", "pyproject.toml")
+#: tree that cannot find them fails for reasons no mutant caused. `tools/` is
+#: here for the same reason and was found the same way -- several suites now
+#: import a `tools/` script by path (the notebook generators, the paper
+#: declarations, the bundle author), and without it the baseline reports nine
+#: collection errors that no mutant caused. It also makes those scripts
+#: MUTABLE, which they have to be: the defect a publication suite exists to
+#: catch lives in the script, not in the package.
+MANIFEST = ("src", "tests", "studies", "notebooks", "tools", "pyproject.toml")
 
 KILLED, SURVIVED, INVALID, NOT_FOUND = "KILLED", "SURVIVED", "INVALID", "NOT FOUND"
 

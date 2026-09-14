@@ -416,6 +416,15 @@ class _BoxQPFunction(torch.autograd.Function):
         multiplier = torch.linalg.solve(
             _mask_rows(Hb, active), rhs.unsqueeze(-1)
         ).squeeze(-1)
+        # RE-MASKED ON THE WAY OUT, because the solve does not preserve the zero
+        # it was handed. The masked row is ``e_i`` against a zero right-hand
+        # side, so ``lambda_i = 0`` exactly -- but LU with partial pivoting swaps
+        # that row away whenever ``|H_ji| > 1`` and then recovers the entry by
+        # cancellation instead, leaving roundoff where structure was intended.
+        # Measured: 9 of 25 one-ULP neighbours of a campaign Hessian leak, and at
+        # n = 100, m = 30 in float32 the leak reaches 7.7e-08 -- which is why
+        # this line is not cosmetic. The free block is untouched, bit for bit.
+        multiplier = torch.where(active, torch.zeros_like(multiplier), multiplier)
 
         grad_H: Tensor | None = None
         grad_c: Tensor | None = None

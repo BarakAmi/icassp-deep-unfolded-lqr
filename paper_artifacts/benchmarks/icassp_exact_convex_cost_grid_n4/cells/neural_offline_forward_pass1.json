@@ -1,0 +1,30 @@
+{
+ "phase": "offline",
+ "contender": "neural",
+ "seed": 0,
+ "study": "studies/icassp_exact_convex/fig1_depth.toml",
+ "tier": "publication_b16k",
+ "axis_filter": {
+  "contenders.*.config.num_iterations": 3
+ },
+ "bench_wall_s": 16.403962076990865,
+ "baseline_rss_bytes": 709525504,
+ "peak_rss_bytes": 9836199936,
+ "current_rss_bytes": 9680785408,
+ "kind": "trainable",
+ "declared_epochs": 200,
+ "bench_epochs": 5,
+ "per_epoch_s": [
+  4.15837559197098,
+  2.655072020017542,
+  2.541555756004527,
+  2.506485700025223,
+  3.082373989978805
+ ],
+ "per_epoch_median_s": 2.655072020017542,
+ "setup_s": 1.4600990189937875,
+ "full_training": false,
+ "extrapolated_total_s": 532.4745030225022,
+ "measured_total_s": null,
+ "offline_time_s": 532.4745030225022
+}

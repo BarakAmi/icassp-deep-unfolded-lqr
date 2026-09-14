@@ -1,0 +1,31 @@
+{
+ "phase": "online",
+ "contender": "truncated_riccati",
+ "seed": 0,
+ "model_id": "e76d61194bfbbf54",
+ "study": "studies/icassp_exact_convex/fig1_depth.toml",
+ "tier": "publication_b16k",
+ "axis_filter": {
+  "contenders.*.config.num_iterations": 3
+ },
+ "setup_s": 0.013489488046616316,
+ "per_step_s": 6.4049381762743e-06,
+ "per_step_p10_s": 6.327987648546696e-06,
+ "per_step_p90_s": 6.821914575994016e-06,
+ "per_step_calls": 2000,
+ "per_step_batch_size": 1,
+ "batched_wall_s": [
+  0.05269400088582188,
+  0.03617125400342047,
+  0.03238892706576735,
+  0.029430774971842766,
+  0.025527669000439346,
+  0.02737325895577669,
+  0.024704652023501694,
+  0.028766537085175514
+ ],
+ "batched_batch_size": 4096,
+ "baseline_rss_bytes": 708988928,
+ "rss_after_load_bytes": 719474688,
+ "peak_rss_bytes": 1102680064
+}

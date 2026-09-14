@@ -1,0 +1,31 @@
+{
+ "phase": "online",
+ "contender": "neural",
+ "seed": 0,
+ "model_id": "1807e0e2e1c53337",
+ "study": "studies/icassp_exact_convex/fig1_depth.toml",
+ "tier": "publication_b16k",
+ "axis_filter": {
+  "contenders.*.config.num_iterations": 3
+ },
+ "setup_s": 0.02286687004379928,
+ "per_step_s": 2.994108945131302e-05,
+ "per_step_p10_s": 2.9564020223915577e-05,
+ "per_step_p90_s": 3.8639828562736515e-05,
+ "per_step_calls": 2000,
+ "per_step_batch_size": 1,
+ "batched_wall_s": [
+  0.1855027989950031,
+  0.15881154604721814,
+  0.15743624395690858,
+  0.14834387099836022,
+  0.14763918693643063,
+  0.14887141599319875,
+  0.14444754493888468,
+  0.14685119595378637
+ ],
+ "batched_batch_size": 4096,
+ "baseline_rss_bytes": 709259264,
+ "rss_after_load_bytes": 731279360,
+ "peak_rss_bytes": 1118244864
+}

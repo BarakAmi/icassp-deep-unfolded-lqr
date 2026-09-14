@@ -421,6 +421,83 @@ class TestTheFourArtifacts:
         ]
         assert all(path.is_file() for path in written.paths)
 
+    def test_a_shipped_figure_carries_no_clock_and_no_build(
+        self, tmp_path: Path
+    ) -> None:
+        """A figure a reviewer redraws must come back as the same file.
+
+        Rendering was already deterministic; the environment was not. Two
+        renders differed in **exactly three bytes** -- the `/CreationDate`
+        matplotlib stamps into a PDF -- and in nothing else. Three bytes is
+        enough for `git status` to report a modified file after an identical
+        redraw, and a reader who cannot tell "the same" from "not the same"
+        without opening both has lost the property the artifact exists for.
+
+        **Asserted on the two fields, not on two renders being equal.** The
+        first version of this test rendered twice and compared the bytes, and
+        it could not fail: both renders happen in the same second, so the
+        stamp agrees with itself. Measured -- putting the stamp back left it
+        passing. What can fail is the presence of the fields themselves.
+
+        They are different properties and both are wanted. `/CreationDate` is a
+        clock, so it breaks reproducibility across TIME. The raster's
+        `Software` chunk is matplotlib's version, so it breaks it across
+        BUILDS: the same figure redrawn on a reviewer's newer matplotlib would
+        differ in bytes for a reason that has nothing to do with the results.
+        """
+        figure = _figure(("alpha", "#2a78d6", "-", "o"))
+        write_figure_artifacts(
+            figure,
+            directory=tmp_path,
+            figure_id="fig_cost",
+            table=_table(),
+            spec={"kind": "axis_scaling"},
+            profile=resolve_profile("thesis"),
+        )
+        plt.close(figure)
+
+        vector = (tmp_path / "fig_cost.pdf").read_bytes()
+        raster = (tmp_path / "fig_cost.png").read_bytes()
+        assert b"/CreationDate" not in vector, (
+            "the vector carries a clock; an identical redraw will not match"
+        )
+        assert b"Software" not in raster, (
+            "the raster carries the renderer's version; an identical redraw on "
+            "another build will not match"
+        )
+
+    def test_two_identical_renders_agree_byte_for_byte(self, tmp_path: Path) -> None:
+        """The end-to-end form of the check above.
+
+        Weak on its own -- two renders a moment apart agree even with a clock
+        in them -- so it stands beside the field assertions rather than instead
+        of them. It is here because the fields are a mechanism and this is the
+        property: something else stamped into the file later would pass that
+        check and fail this one.
+        """
+        rendered = {}
+        for run in ("first", "second"):
+            figure = _figure(("alpha", "#2a78d6", "-", "o"))
+            write_figure_artifacts(
+                figure,
+                directory=tmp_path / run,
+                figure_id="fig_cost",
+                table=_table(),
+                spec={"kind": "axis_scaling"},
+                profile=resolve_profile("thesis"),
+            )
+            plt.close(figure)
+            rendered[run] = {
+                suffix: (tmp_path / run / f"fig_cost{suffix}").read_bytes()
+                for suffix in (".pdf", ".png")
+            }
+        for suffix in (".pdf", ".png"):
+            first, second = rendered["first"][suffix], rendered["second"][suffix]
+            assert first == second, (
+                f"{suffix} differs in "
+                f"{sum(a != b for a, b in zip(first, second))} byte(s)"
+            )
+
     def test_the_raster_is_at_the_annex_s_resolution(self, tmp_path: Path) -> None:
         # 600 dpi, not `viz.style.io`'s 150 -- a figure at 150 is a preview.
         from PIL import Image

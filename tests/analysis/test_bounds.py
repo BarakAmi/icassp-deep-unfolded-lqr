@@ -127,3 +127,40 @@ def test_a_problem_with_no_box_is_refused() -> None:
     """A box-aware bound needs a box to be aware of."""
     with pytest.raises(SpecificationError, match="control bound"):
         bound_rows(_study(u_max=None), {"bounds": ["finite_horizon_box"]})
+
+
+class TestEveryBoundIsNameable:
+    """A bound is drawn, so a reader has to be given something to read.
+
+    Both depth figures printed **`finite_horizon_box`** — the registry key, an
+    identifier — into a paper's plot, because a contender carries its own
+    `display` and a bound carried none. The names now live beside the kinds so
+    that the omission cannot recur silently.
+    """
+
+    def test_every_bound_has_a_reader_facing_name(self) -> None:
+        """Set equality, not membership: adding a kind must add a name.
+
+        A test that only checked the names it knows about would pass forever
+        while a new bound went out labelled with its key, which is the failure
+        this replaces.
+        """
+        from mbl.analysis.bounds import BOUND_DISPLAY, BOUND_KINDS
+
+        assert set(BOUND_DISPLAY) == set(BOUND_KINDS)
+
+    def test_no_name_is_an_identifier(self) -> None:
+        """The point of the change: what is shown must not read as a key.
+
+        `finite_horizon_box` satisfies "is a string" and was the defect, so the
+        assertion is about the SHAPE a reader sees — words with spaces, not a
+        snake_case token.
+        """
+        from mbl.analysis.bounds import BOUND_DISPLAY, BOUND_KINDS
+
+        for kind, shown in BOUND_DISPLAY.items():
+            assert shown != kind, f"{kind} is shown as its own key"
+            assert "_" not in shown, f"{shown!r} still reads as an identifier"
+            assert " " in shown, f"{shown!r} is not a reader-facing name"
+        assert BOUND_DISPLAY["finite_horizon_box"] == "Finite-horizon box bound"
+        assert set(BOUND_KINDS)  # anti-vacuity: the registry is not empty
